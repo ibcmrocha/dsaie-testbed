@@ -75,6 +75,12 @@ As with clustering, the latent variable $\alpha$ we learn from the data does not
 
 The figure above also shows that some spread remains around the $\alpha$ coordinate. In the 1D latent space, this variation is therefore considered unexplained and discarded. This is an important facet of dimensionality reduction: we are always trying to minimize it, but information is almost always lost when going to for lower-dimensional representations.
 
+## Why automate clustering?
+
+Clustering a handful of observations by eye may seem easy in one or two dimensions. Try making the same two-cluster decision below as the number of dimensions grows. In four dimensions, each observation appears in all six pairwise views, so selecting it in one plot updates it everywhere.
+
+<iframe src="../_static/manual-clustering.html" title="Interactive manual clustering in one, two, and four dimensions" width="100%" height="590" frameborder="0" loading="lazy"></iframe>
+
 ```{admonition} Exam questions    
 :class: danger    
 The contents here are quite important, and might appear in the exam in the form of conceptual questions.
