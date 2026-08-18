@@ -27,7 +27,7 @@ sphinx:                                              # Options passed on to the 
       use_thebe_lite: true                           # Required for live code, part of TeachBooks-Sphinx-Thebe (https://teachbooks.io/manual/features/live_code.html)
       exclude_patterns: ["**/_*.yml", "**/*.md", "**/*.ipynb"] #exclude files which should not be accessible for live code, configuration part of TeachBooks-Sphinx-Thebe (https://teachbooks.io/manual/features/live_code.html)
     html_favicon: "figures/DSAIE_icon.ico"           # Default value not shown (line can be removed), allows to add your own favicon (disabling of TU Delft favicon is required), configuration part of Sphinx (https://www.sphinx-doc.org/en/master/index.html)
-    html_baseurl: "https://oit.tudelft.nl>/dsaie"   # Replace this with your own URL, configuration part of Sphinx (https://www.sphinx-doc.org/en/master/index.html)
+    html_baseurl: "https://ibcmrocha.github.io/book"   # Replace this with your own URL, configuration part of Sphinx (https://www.sphinx-doc.org/en/master/index.html)
     html_theme_options:
       home_page_in_toc: true                         # Replace with false it you don't want the landing page to be shown in the table of contents.
       logo:
