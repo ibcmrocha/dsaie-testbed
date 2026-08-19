@@ -15,7 +15,8 @@
     button { border: 1px solid #bbb; border-radius: 4px; background: #f7f7f7; color: #222; padding: 7px 12px; font: inherit; font-size: .88rem; cursor: pointer; }
     button:hover { background: #ececec; }
     button.active { color: white; background: #277da1; border-color: #277da1; }
-    .answer { margin-left: auto; }
+    .score { margin-left: auto; color: #444; font-size: .88rem; font-weight: 600; }
+    .score[hidden] { display: none; }
     .plot-shell { min-height: 450px; border: 1px solid #ddd; background: #fafafa; position: relative; overflow: hidden; }
     .instruction { text-align: center; color: #555; font-size: .88rem; margin: 10px 8px 2px; }
     svg { display: block; width: 100%; height: auto; }
@@ -30,7 +31,7 @@
     .answer-visible .answer-ring { opacity: 1; }
     @media (max-width: 520px) {
       button { padding: 6px 9px; }
-      .answer { margin-left: 0; }
+      .score { margin-left: 0; flex-basis: 100%; }
       .plot-shell { min-height: 520px; }
     }
   </style>
@@ -44,6 +45,7 @@
       <button class="dim" data-dim="4">4D</button>
     </div>
     <button id="randomize">Randomize data</button>
+    <span id="score" class="score" role="status" aria-live="polite" hidden></span>
     <button id="answer" class="answer" aria-pressed="false">Show answer</button>
   </div>
   <section class="plot-shell">
@@ -127,6 +129,13 @@
     item.guess = 1 - item.guess;
     d3.selectAll(".point").filter(d => d.id === id).select(".guess").transition().duration(180).attr("fill", colours[item.guess]);
     d3.selectAll(".point").filter(d => d.id === id).attr("aria-label", `Observation ${id + 1}, ${names[item.guess]}`);
+    if (answerVisible) updateScore();
+  }
+
+  function updateScore() {
+    const direct = d3.sum(data, d => d.guess === d.answer ? 1 : 0);
+    const correct = Math.max(direct, data.length - direct);
+    d3.select("#score").text(`You clustered correctly: ${correct}/${data.length} points`).attr("hidden", null);
   }
 
   function draw() {
@@ -198,6 +207,7 @@
     data = sample(dimension);
     answerVisible = false;
     d3.select("#answer").text("Show answer").attr("aria-pressed", "false");
+    d3.select("#score").attr("hidden", true).text("");
     draw();
   }
 
@@ -211,6 +221,8 @@
   d3.select("#answer").on("click", function() {
     answerVisible = !answerVisible;
     d3.select(this).text(answerVisible ? "Hide answer" : "Show answer").attr("aria-pressed", answerVisible);
+    if (answerVisible) updateScore();
+    else d3.select("#score").attr("hidden", true);
     d3.select("svg").classed("answer-visible", answerVisible);
     draw();
   });
