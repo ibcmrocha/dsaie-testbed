@@ -21,7 +21,6 @@
     svg { display: block; width: 100%; height: auto; }
     .axis text, .axis-label, .legend { font-size: 12px; fill: #444; }
     .axis path, .axis line { stroke: #999; }
-    .panel-frame { fill: #fff; stroke: #ddd; }
     .point { cursor: pointer; }
     .point .guess { stroke: none; opacity: .72; }
     .point .cross { stroke: #171717; stroke-width: 2; pointer-events: none; }
@@ -170,11 +169,10 @@
       const col = index % 3, row = Math.floor(index / 3), ox = left + col * (panelW + gap), oy = top + row * 225;
       const x = d3.scaleLinear().domain(extent(a)).range([ox, ox + panelW]);
       const y = d3.scaleLinear().domain(extent(b)).range([oy + panelH, oy]);
-      svg.append("rect").attr("class", "panel-frame").attr("x", ox).attr("y", oy).attr("width", panelW).attr("height", panelH);
-      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${oy + panelH})`).call(d3.axisBottom(x).ticks(4));
-      svg.append("g").attr("class", "axis").attr("transform", `translate(${ox},0)`).call(d3.axisLeft(y).ticks(4));
-      svg.append("text").attr("class", "axis-label").attr("x", ox + panelW / 2).attr("y", oy + panelH + 32).attr("text-anchor", "middle").text(`x${subscripts[a]}`);
-      svg.append("text").attr("class", "axis-label").attr("transform", `translate(${ox - 36},${oy + panelH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(`x${subscripts[b]}`);
+      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${oy + panelH})`).call(d3.axisBottom(x).tickValues([]));
+      svg.append("g").attr("class", "axis").attr("transform", `translate(${ox},0)`).call(d3.axisLeft(y).tickValues([]));
+      svg.append("text").attr("class", "axis-label").attr("x", ox + panelW / 2).attr("y", oy + panelH + 16).attr("text-anchor", "middle").text(`x${subscripts[a]}`);
+      svg.append("text").attr("class", "axis-label").attr("transform", `translate(${ox - 16},${oy + panelH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(`x${subscripts[b]}`);
       const groups = svg.append("g").selectAll("g").data(data, d => d.id).join("g");
       point(groups, d => x(d.values[a]), d => y(d.values[b]), 7);
     });
