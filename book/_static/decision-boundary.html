@@ -39,7 +39,7 @@
     svg { display: block; width: 100%; height: auto; touch-action: none; }
     text { font-family: inherit; fill: #111; }
     .curve { fill: none; stroke-width: 4; }
-    .axis { stroke: #111; stroke-width: 1; }
+    .axis { stroke: #111; stroke-width: 1.75; }
     .boundary { stroke: #111; stroke-width: 1.5; }
     .boundary-hit { cursor: ew-resize; stroke: transparent; stroke-width: 24; }
     .handle { cursor: ew-resize; fill: #fff; stroke: #111; stroke-width: 1.5; }
@@ -110,23 +110,21 @@
 
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#017188").attr("d", line);
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#c3312f").attr("d", line2);
-  g.append("text").attr("x", x(1.55)).attr("y", y(0.43)).attr("class", "region-label").attr("fill", "#017188").text("p(x, C₁)");
-  g.append("text").attr("x", x(4.12)).attr("y", y(0.43)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, C₂)");
+  g.append("text").attr("x", x(1.55)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#017188").text("p(x, 𝒞₁)");
+  g.append("text").attr("x", x(4.12)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, 𝒞₂)");
 
   const boundaryGroup = g.append("g");
   const boundary = boundaryGroup.append("line").attr("class", "boundary");
   const hit = boundaryGroup.append("line").attr("class", "boundary-hit");
   const handle = boundaryGroup.append("circle").attr("class", "handle").attr("r", 7).attr("cy", plot.top + 10);
-  const boundaryText = boundaryGroup.append("text").attr("text-anchor", "middle").attr("font-size", 12).attr("y", 28).text("Decision boundary");
-  const regionLeft = g.append("text").attr("class", "region-label").attr("text-anchor", "middle").attr("y", 45).text("R₁");
-  const regionRight = g.append("text").attr("class", "region-label").attr("text-anchor", "middle").attr("y", 45).text("R₂");
+  const boundaryText = boundaryGroup.append("text").attr("text-anchor", "middle").attr("font-size", 14).attr("y", 28).text("Decision boundary");
 
-  g.append("text").attr("x", matrix.left + matrix.size / 2).attr("y", 62).attr("text-anchor", "middle").attr("font-size", 15).text("True class");
-  g.append("text").attr("x", matrix.left + matrix.size * 0.25).attr("y", 91).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
-  g.append("text").attr("x", matrix.left + matrix.size * 0.75).attr("y", 91).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
-  g.append("text").attr("transform", `translate(${matrix.left - 60},${matrix.top + matrix.size / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 15).text("Assigned class");
-  g.append("text").attr("x", matrix.left - 22).attr("y", matrix.top + matrix.size * 0.25 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
-  g.append("text").attr("x", matrix.left - 22).attr("y", matrix.top + matrix.size * 0.75 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
+  g.append("text").attr("x", matrix.left + matrix.size / 2).attr("y", matrix.top - 17).attr("text-anchor", "middle").attr("font-size", 15).text("Actual class");
+  g.append("text").attr("x", matrix.left + matrix.size * 0.25).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₁");
+  g.append("text").attr("x", matrix.left + matrix.size * 0.75).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₂");
+  g.append("text").attr("transform", `translate(${matrix.left - 37},${matrix.top + matrix.size / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 15).text("Prediction");
+  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.25 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₁");
+  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.75 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₂");
 
   const cells = [
     { key: "tn", col: 0, row: 0, color: "#017188", opacity: 0.2 },
@@ -171,8 +169,6 @@
     [boundary, hit].forEach(s => s.attr("x1", bx).attr("x2", bx).attr("y1", plot.top).attr("y2", plot.bottom));
     handle.attr("cx", bx);
     boundaryText.attr("x", bx);
-    regionLeft.attr("x", (plot.left + bx) / 2);
-    regionRight.attr("x", (bx + plot.right) / 2);
 
     const values = {
       tn: integral(density1, domain[0], decision), fp: integral(density1, decision, domain[1]),
