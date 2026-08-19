@@ -19,13 +19,14 @@
     .plot-shell { min-height: 450px; border: 1px solid #ddd; background: #fafafa; position: relative; overflow: hidden; }
     .instruction { text-align: center; color: #555; font-size: .88rem; margin: 10px 8px 2px; }
     svg { display: block; width: 100%; height: auto; }
-    .axis text, .legend { font-size: 12px; fill: #444; }
+    .axis text, .axis-label, .legend { font-size: 12px; fill: #444; }
     .axis path, .axis line { stroke: #999; }
     .panel-frame { fill: #fff; stroke: #ddd; }
     .point { cursor: pointer; }
     .point .guess { stroke: none; opacity: .72; }
     .point .cross { stroke: #171717; stroke-width: 2; pointer-events: none; }
     .point .answer-ring { fill: none; stroke-width: 3; opacity: 0; pointer-events: none; }
+    .point .answer-ring.cluster-2 { stroke-dasharray: 3 3; }
     .point-label { fill: #333; font-size: 11px; font-weight: 600; pointer-events: none; paint-order: stroke; stroke: white; stroke-width: 3px; stroke-linejoin: round; }
     .answer-visible .answer-ring { opacity: 1; }
     @media (max-width: 520px) {
@@ -55,6 +56,7 @@
 (() => {
   const colours = ["#277da1", "#f3722c"];
   const names = ["Your cluster 1", "Your cluster 2"];
+  const subscripts = ["₁", "₂", "₃", "₄"];
   let dimension = 1;
   let data = [];
   let answerVisible = false;
@@ -113,7 +115,7 @@
       .attr("fill", d => colours[d.guess]);
     group.append("path").attr("class", "cross").attr("d", `M-${radius * .45},-${radius * .45}L${radius * .45},${radius * .45}M${radius * .45},-${radius * .45}L-${radius * .45},${radius * .45}`);
     group.append("circle").attr("class", "answer-ring").attr("r", radius + 4)
-      .attr("stroke", d => colours[d.answer]);
+      .classed("cluster-2", d => d.answer === 1).attr("stroke", "#171717");
     group.append("text").attr("class", "point-label").attr("x", radius + 3).attr("y", -radius + 2)
       .text(d => d.id + 1);
     group.on("click", (_, d) => toggle(d.id)).on("keydown", (event, d) => {
@@ -152,10 +154,10 @@
     const x = d3.scaleLinear().domain(extent(0)).range([margin.left, width - margin.right]);
     const y = dimension === 1 ? () => 190 : d3.scaleLinear().domain(extent(1)).range([height - margin.bottom, margin.top]);
     svg.append("g").attr("class", "axis").attr("transform", `translate(0,${dimension === 1 ? 210 : height - margin.bottom})`).call(d3.axisBottom(x));
-    svg.append("text").attr("x", width / 2).attr("y", dimension === 1 ? 250 : height - 38).attr("text-anchor", "middle").text("x₁");
+    svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", dimension === 1 ? 250 : height - 38).attr("text-anchor", "middle").text("x₁");
     if (dimension === 2) {
       svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y));
-      svg.append("text").attr("transform", "rotate(-90)").attr("x", -(height - margin.bottom + margin.top) / 2).attr("y", 18).attr("text-anchor", "middle").text("x₂");
+      svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("x", -(height - margin.bottom + margin.top) / 2).attr("y", 18).attr("text-anchor", "middle").text("x₂");
     }
     const groups = svg.append("g").selectAll("g").data(data, d => d.id).join("g");
     point(groups, d => x(d.values[0]), d => y(d.values[1]), 10);
@@ -171,23 +173,27 @@
       svg.append("rect").attr("class", "panel-frame").attr("x", ox).attr("y", oy).attr("width", panelW).attr("height", panelH);
       svg.append("g").attr("class", "axis").attr("transform", `translate(0,${oy + panelH})`).call(d3.axisBottom(x).ticks(4));
       svg.append("g").attr("class", "axis").attr("transform", `translate(${ox},0)`).call(d3.axisLeft(y).ticks(4));
-      svg.append("text").attr("x", ox + panelW / 2).attr("y", oy + panelH + 34).attr("text-anchor", "middle").text(`x${a + 1}`);
-      svg.append("text").attr("transform", `translate(${ox - 38},${oy + panelH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(`x${b + 1}`);
+      svg.append("text").attr("class", "axis-label").attr("x", ox + panelW / 2).attr("y", oy + panelH + 32).attr("text-anchor", "middle").text(`x${subscripts[a]}`);
+      svg.append("text").attr("class", "axis-label").attr("transform", `translate(${ox - 36},${oy + panelH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(`x${subscripts[b]}`);
       const groups = svg.append("g").selectAll("g").data(data, d => d.id).join("g");
       point(groups, d => x(d.values[a]), d => y(d.values[b]), 7);
     });
   }
 
   function drawLegend(svg, width, height) {
-    const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${width / 2 - 180},${height - 18})`);
+    const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${width / 2 - 275},${height - 18})`);
     [0, 1].forEach((k, i) => {
-      const g = legend.append("g").attr("transform", `translate(${i * 155},0)`);
+      const g = legend.append("g").attr("transform", `translate(${i * 140},0)`);
       g.append("circle").attr("r", 7).attr("fill", colours[k]).attr("opacity", .72);
       g.append("text").attr("x", 12).attr("y", 4).text(names[k]);
     });
-    const answer = legend.append("g").attr("transform", "translate(310,0)").style("opacity", answerVisible ? 1 : 0);
-    answer.append("circle").attr("r", 9).attr("fill", "none").attr("stroke", "#555").attr("stroke-width", 3);
-    answer.append("text").attr("x", 14).attr("y", 4).text("k-means answer (ring)");
+    const answer = legend.append("g").attr("transform", "translate(280,0)").style("opacity", answerVisible ? 1 : 0);
+    [0, 1].forEach((k, i) => {
+      const g = answer.append("g").attr("transform", `translate(${i * 145},0)`);
+      g.append("circle").attr("r", 9).attr("fill", "none").attr("stroke", "#171717").attr("stroke-width", 3)
+        .attr("stroke-dasharray", k ? "3 3" : null);
+      g.append("text").attr("x", 14).attr("y", 4).text(`k-means cluster ${k + 1}`);
+    });
   }
 
   function reset() {
