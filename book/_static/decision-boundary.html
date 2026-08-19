@@ -80,7 +80,6 @@
   const normal = (v, mean, sd, weight) => weight * Math.exp(-0.5 * ((v - mean) / sd) ** 2) / (sd * Math.sqrt(2 * Math.PI));
   const density1 = v => normal(v, 2, 0.85, 1);
   const density2 = v => normal(v, 4, 0.85, 1);
-  const crossing = 3;
   const samples = d3v.range(domain[0], domain[1] + 0.001, 0.01);
   const line = d3v.line().x(d => x(d)).y(d => y(density1(d))).curve(d3v.curveBasis);
   const line2 = d3v.line().x(d => x(d)).y(d => y(density2(d))).curve(d3v.curveBasis);
@@ -97,12 +96,17 @@
 
   const fills = g.append("g").attr("clip-path", "url(#plot-clip)");
   const areaFor = fn => d3v.area().x(d => x(d)).y0(plot.bottom).y1(d => y(fn(d))).curve(d3v.curveBasis);
-  const leftArea1 = fills.append("path").attr("fill", "#017188").attr("fill-opacity", 0.2);
-  const rightArea1 = fills.append("path").attr("fill", "#0066a2");
-  const lightBlueArea = fills.append("path").attr("fill", "#70b7cb");
-  const leftArea2 = fills.append("path").attr("fill", "#00a390");
-  const lightGreenArea = fills.append("path").attr("fill", "#99d28c");
-  const rightArea2 = fills.append("path").attr("fill", "#c3312f").attr("fill-opacity", 0.2);
+  const areaBetween = (lower, upper) => d3v.area().x(d => x(d))
+    .y0(d => y(lower(d))).y1(d => y(upper(d))).curve(d3v.curveBasis);
+  const overlap = v => Math.min(density1(v), density2(v));
+  const excess1 = v => Math.max(0, density1(v) - density2(v));
+  const excess2 = v => Math.max(0, density2(v) - density1(v));
+  const correctArea1 = fills.append("path").attr("fill", "#017188").attr("fill-opacity", 0.2);
+  const correctArea2 = fills.append("path").attr("fill", "#c3312f").attr("fill-opacity", 0.2);
+  const greenOverlapArea = fills.append("path").attr("fill", "#00a390");
+  const greenExcessArea = fills.append("path").attr("fill", "#99d28c");
+  const blueOverlapArea = fills.append("path").attr("fill", "#0066a2");
+  const blueExcessArea = fills.append("path").attr("fill", "#70b7cb");
 
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#017188").attr("d", line);
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#c3312f").attr("d", line2);
@@ -158,16 +162,12 @@
     const bx = x(decision);
     const left1 = samples.filter(v => v <= decision);
     const right1 = samples.filter(v => v >= decision);
-    const left2 = samples.filter(v => v <= decision);
-    const right2 = samples.filter(v => v >= decision);
-    const lightBlue = samples.filter(v => v >= decision && v <= crossing);
-    const lightGreen = samples.filter(v => v >= crossing && v <= decision);
-    leftArea1.datum(left1).attr("d", areaFor(density1));
-    rightArea1.datum(right1).attr("d", areaFor(density1));
-    leftArea2.datum(left2).attr("d", areaFor(density2));
-    lightBlueArea.datum(lightBlue).attr("d", areaFor(density1));
-    lightGreenArea.datum(lightGreen).attr("d", areaFor(density2));
-    rightArea2.datum(right2).attr("d", areaFor(density2));
+    correctArea1.datum(left1).attr("d", areaFor(density1));
+    correctArea2.datum(right1).attr("d", areaFor(density2));
+    greenOverlapArea.datum(left1).attr("d", areaFor(overlap));
+    greenExcessArea.datum(left1).attr("d", areaBetween(overlap, density2));
+    blueOverlapArea.datum(right1).attr("d", areaFor(overlap));
+    blueExcessArea.datum(right1).attr("d", areaBetween(overlap, density1));
     [boundary, hit].forEach(s => s.attr("x1", bx).attr("x2", bx).attr("y1", plot.top).attr("y2", plot.bottom));
     handle.attr("cx", bx);
     boundaryText.attr("x", bx);
@@ -228,8 +228,8 @@
           .attr("x2", x0 + endpoints[1][0] * side).attr("y2", y0 + endpoints[1][1] * side);
       }
     };
-    const greenLightValue = decision > crossing ? integral(density2, crossing, decision) : 0;
-    const blueLightValue = decision < crossing ? integral(density1, decision, crossing) : 0;
+    const greenLightValue = integral(excess2, domain[0], decision);
+    const blueLightValue = integral(excess1, decision, domain[1]);
     setErrorCell(greenLight, greenDark, greenDiagonal, 1, 0, values.fn, maxValues.fn, greenLightValue);
     setErrorCell(blueLight, blueDark, blueDiagonal, 0, 1, values.fp, maxValues.fp, blueLightValue);
   }
