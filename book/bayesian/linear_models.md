@@ -399,6 +399,13 @@ Click below to see three different radial basis function models fitted to the sa
 ````
 `````
 
+Use the interactive comparison below to see how the prior precision $\alpha$ and
+noise precision $\beta$ affect all five polynomial weights, the MAP estimate,
+and the full Bayesian predictive distribution. Resample the five observations
+to see which conclusions persist across datasets.
+
+<iframe src="../_static/bayesian-linear-models.html" style="width: 100%; height: 720px; border: 0;" loading="lazy" title="Interactive comparison of MLE, MAP and Bayesian polynomial regression"></iframe>
+
 ```{admonition} Exam questions    
 :class: danger    
 For the exam it is crucial that you understand how the Bayesian version of the regression problem arises and how it compares with MLE (and what you have seen in MUDE) and MAP solutions. You might also see formulation questions related to these concepts. All necessary mathematical expressions will be given in the exam, so there is no need to memorize them.
