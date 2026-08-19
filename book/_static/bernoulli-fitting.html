@@ -112,6 +112,7 @@
         <div class="button-group">
           <button id="throw-coin" type="button">Throw a coin</button>
           <button id="throw-100-coins" type="button">Throw 100 coins</button>
+          <button id="throw-1000-coins" type="button">Throw 1000 coins</button>
           <button id="reset" class="secondary" type="button">Reset</button>
         </div>
         <div id="outcome" class="outcome" role="status" aria-live="polite">No coin thrown yet</div>
@@ -159,7 +160,7 @@
       .attr("x", innerWidth / 2)
       .attr("y", innerHeight + 46)
       .attr("text-anchor", "middle")
-      .text("μ = p(x = 1 = heads)");
+      .text("μ [p(throw = heads)]");
 
     plot.append("text")
       .attr("class", "axis-label")
@@ -248,13 +249,14 @@
 
       const outcome = numberOfCoins === 1
         ? (newHeads === 1 ? "coin came out heads (x = 1)" : "coin came out tails (x = 0)")
-        : `100 coins came out ${newHeads} heads (x = 1) and ${newTails} tails (x = 0)`;
+        : `${numberOfCoins} coins came out ${newHeads} heads (x = 1) and ${newTails} tails (x = 0)`;
       d3.select("#outcome").text(outcome);
       update();
     }
 
     d3.select("#throw-coin").on("click", () => throwCoins(1));
     d3.select("#throw-100-coins").on("click", () => throwCoins(100));
+    d3.select("#throw-1000-coins").on("click", () => throwCoins(1000));
     d3.select("#reset").on("click", () => {
       heads = 0;
       tails = 0;
