@@ -38,7 +38,7 @@
     .chart-panel { padding: 10px; }
     svg { display: block; width: 100%; height: auto; touch-action: none; }
     text { font-family: inherit; fill: #111; }
-    .curve { fill: none; stroke-width: 2; }
+    .curve { fill: none; stroke-width: 4; }
     .axis { stroke: #111; stroke-width: 1; }
     .boundary { stroke: #111; stroke-width: 1.5; }
     .boundary-hit { cursor: ew-resize; stroke: transparent; stroke-width: 24; }
@@ -97,7 +97,9 @@
   const areaFor = fn => d3v.area().x(d => x(d)).y0(plot.bottom).y1(d => y(fn(d))).curve(d3v.curveBasis);
   const leftArea1 = fills.append("path").attr("fill", "#017188").attr("fill-opacity", 0.2);
   const rightArea1 = fills.append("path").attr("fill", "#0066a2");
-  const leftArea2 = fills.append("path").attr("fill", "#99d28c");
+  const lightBlueArea = fills.append("path").attr("fill", "#70b7cb");
+  const leftArea2 = fills.append("path").attr("fill", "#00a390");
+  const lightGreenArea = fills.append("path").attr("fill", "#99d28c");
   const rightArea2 = fills.append("path").attr("fill", "#c3312f").attr("fill-opacity", 0.2);
 
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#017188").attr("d", line);
@@ -113,25 +115,27 @@
   const regionLeft = g.append("text").attr("class", "region-label").attr("text-anchor", "middle").attr("y", 45).text("R₁");
   const regionRight = g.append("text").attr("class", "region-label").attr("text-anchor", "middle").attr("y", 45).text("R₂");
 
-  g.append("text").attr("x", matrix.left + matrix.size / 2).attr("y", 62).attr("text-anchor", "middle").attr("font-size", 15).text("Assigned class");
+  g.append("text").attr("x", matrix.left + matrix.size / 2).attr("y", 62).attr("text-anchor", "middle").attr("font-size", 15).text("True class");
   g.append("text").attr("x", matrix.left + matrix.size * 0.25).attr("y", 91).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
   g.append("text").attr("x", matrix.left + matrix.size * 0.75).attr("y", 91).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
-  g.append("text").attr("transform", `translate(${matrix.left - 60},${matrix.top + matrix.size / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 15).text("True class");
+  g.append("text").attr("transform", `translate(${matrix.left - 60},${matrix.top + matrix.size / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 15).text("Assigned class");
   g.append("text").attr("x", matrix.left - 22).attr("y", matrix.top + matrix.size * 0.25 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
   g.append("text").attr("x", matrix.left - 22).attr("y", matrix.top + matrix.size * 0.75 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
 
   const cells = [
     { key: "tn", col: 0, row: 0, color: "#017188", opacity: 0.2 },
-    { key: "fp", col: 0, row: 1, color: "#0066a2", opacity: 1 },
     { key: "tp", col: 1, row: 1, color: "#c3312f", opacity: 0.2 }
   ];
   const cellSize = matrix.size / 2;
   const matrixFills = g.append("g");
   const cellRects = matrixFills.selectAll("rect").data(cells).join("rect")
     .attr("fill", d => d.color).attr("fill-opacity", d => d.opacity);
-  const errorLight = matrixFills.append("polygon").attr("fill", "#99d28c");
-  const errorDark = matrixFills.append("polygon").attr("fill", "#00a390");
-  const diagonal = matrixFills.append("line").attr("class", "matrix-divider");
+  const greenLight = matrixFills.append("polygon").attr("fill", "#99d28c");
+  const greenDark = matrixFills.append("polygon").attr("fill", "#00a390");
+  const greenDiagonal = matrixFills.append("line").attr("class", "matrix-divider");
+  const blueLight = matrixFills.append("polygon").attr("fill", "#70b7cb");
+  const blueDark = matrixFills.append("polygon").attr("fill", "#0066a2");
+  const blueDiagonal = matrixFills.append("line").attr("class", "matrix-divider");
   g.append("rect").attr("class", "matrix-outline").attr("x", matrix.left).attr("y", matrix.top).attr("width", matrix.size).attr("height", matrix.size);
   g.append("line").attr("class", "matrix-divider").attr("x1", matrix.left + cellSize).attr("x2", matrix.left + cellSize).attr("y1", matrix.top).attr("y2", matrix.top + matrix.size);
   g.append("line").attr("class", "matrix-divider").attr("x1", matrix.left).attr("x2", matrix.left + matrix.size).attr("y1", matrix.top + cellSize).attr("y2", matrix.top + cellSize);
@@ -146,7 +150,11 @@
     tn: integral(density1, -4, 5), fp: integral(density1, -4, 5),
     fn: integral(density2, -4, 5), tp: integral(density2, -4, 5)
   };
-  let decision = 0.15;
+  const crossing = samples.filter(value => value >= -0.5 && value <= 0.8).reduce((best, value) =>
+    Math.abs(density1(value) - density2(value)) < Math.abs(density1(best) - density2(best)) ? value : best,
+    -0.5
+  );
+  let decision = 0.75;
 
   function update() {
     const bx = x(decision);
@@ -154,9 +162,13 @@
     const right1 = samples.filter(v => v >= decision);
     const left2 = samples.filter(v => v <= decision);
     const right2 = samples.filter(v => v >= decision);
+    const lightBlue = samples.filter(v => v >= decision && v <= crossing);
+    const lightGreen = samples.filter(v => v >= crossing && v <= decision);
     leftArea1.datum(left1).attr("d", areaFor(density1));
     rightArea1.datum(right1).attr("d", areaFor(density1));
     leftArea2.datum(left2).attr("d", areaFor(density2));
+    lightBlueArea.datum(lightBlue).attr("d", areaFor(density1));
+    lightGreenArea.datum(lightGreen).attr("d", areaFor(density2));
     rightArea2.datum(right2).attr("d", areaFor(density2));
     [boundary, hit].forEach(s => s.attr("x1", bx).attr("x2", bx).attr("y1", plot.top).attr("y2", plot.bottom));
     handle.attr("cx", bx);
@@ -176,15 +188,28 @@
         .attr("y", matrix.top + d.row * cellSize + (cellSize - side) / 2)
         .attr("width", side).attr("height", side);
     });
-    const errorSide = cellSize * Math.sqrt(values.fn / maxValues.fn) * 0.9;
-    const errorX = matrix.left + cellSize + (cellSize - errorSide) / 2;
-    const errorY = matrix.top + (cellSize - errorSide) / 2;
-    const crossing = 0.02;
-    const darkShare = values.fn > 0 ? integral(density2, Math.max(-4, crossing), decision) / values.fn : 0;
-    const split = errorX + errorSide * Math.max(0, Math.min(1, darkShare));
-    errorLight.attr("points", `${errorX},${errorY} ${errorX + errorSide},${errorY} ${errorX + errorSide},${errorY + errorSide} ${errorX},${errorY + errorSide}`);
-    errorDark.attr("points", `${split},${errorY} ${errorX + errorSide},${errorY} ${errorX + errorSide},${errorY + errorSide}`);
-    diagonal.attr("x1", split).attr("y1", errorY).attr("x2", errorX + errorSide).attr("y2", errorY + errorSide);
+    const setErrorCell = (light, dark, divider, col, row, total, maximum, lightValue) => {
+      const side = cellSize * Math.sqrt(total / maximum) * 0.9;
+      const x0 = matrix.left + col * cellSize + (cellSize - side) / 2;
+      const y0 = matrix.top + row * cellSize + (cellSize - side) / 2;
+      const square = `${x0},${y0} ${x0 + side},${y0} ${x0 + side},${y0 + side} ${x0},${y0 + side}`;
+      if (lightValue <= 1e-6) {
+        light.attr("points", "");
+        dark.attr("points", square);
+        divider.attr("display", "none");
+        return;
+      }
+      const lightShare = Math.max(0, Math.min(1, lightValue / total));
+      const split = x0 + side * lightShare;
+      light.attr("points", square);
+      dark.attr("points", `${split},${y0} ${x0 + side},${y0} ${x0 + side},${y0 + side}`);
+      divider.attr("display", null).attr("x1", split).attr("y1", y0)
+        .attr("x2", x0 + side).attr("y2", y0 + side);
+    };
+    const greenLightValue = decision > crossing ? integral(density2, crossing, decision) : 0;
+    const blueLightValue = decision < crossing ? integral(density1, decision, crossing) : 0;
+    setErrorCell(greenLight, greenDark, greenDiagonal, 1, 0, values.fn, maxValues.fn, greenLightValue);
+    setErrorCell(blueLight, blueDark, blueDiagonal, 0, 1, values.fp, maxValues.fp, blueLightValue);
   }
 
   boundaryGroup.call(d3v.drag().on("drag", event => {
