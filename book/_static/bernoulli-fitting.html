@@ -51,6 +51,12 @@
       background: #f7f9fb;
     }
 
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
     button {
       border: 1px solid var(--c-button);
       border-radius: 6px;
@@ -64,6 +70,13 @@
 
     button:hover { background: #005a94; }
     button:focus-visible { outline: 3px solid rgba(0, 118, 194, 0.3); outline-offset: 2px; }
+
+    button.secondary {
+      color: var(--c-button);
+      background: var(--c-surface);
+    }
+
+    button.secondary:hover { background: #eaf5fb; }
 
     .outcome {
       flex: 1 1 210px;
@@ -96,7 +109,11 @@
   <main class="widget-shell">
     <section class="widget-card" aria-label="Interactive Bernoulli distribution fitting">
       <div class="controls">
-        <button id="throw-coin" type="button">Throw a coin</button>
+        <div class="button-group">
+          <button id="throw-coin" type="button">Throw a coin</button>
+          <button id="throw-100-coins" type="button">Throw 100 coins</button>
+          <button id="reset" class="secondary" type="button">Reset</button>
+        </div>
         <div id="outcome" class="outcome" role="status" aria-live="polite">No coin thrown yet</div>
         <div id="counts" class="counts">0 observations · 0 heads · 0 tails</div>
       </div>
@@ -220,11 +237,30 @@
       }
     }
 
-    d3.select("#throw-coin").on("click", () => {
-      const isHeads = Math.random() < 0.5;
-      if (isHeads) heads += 1;
-      else tails += 1;
-      d3.select("#outcome").text(isHeads ? "coin came out heads (x = 1)" : "coin came out tails (x = 0)");
+    function throwCoins(numberOfCoins) {
+      let newHeads = 0;
+      for (let index = 0; index < numberOfCoins; index += 1) {
+        if (Math.random() < 0.5) newHeads += 1;
+      }
+      const newTails = numberOfCoins - newHeads;
+      heads += newHeads;
+      tails += newTails;
+
+      const outcome = numberOfCoins === 1
+        ? (newHeads === 1 ? "coin came out heads (x = 1)" : "coin came out tails (x = 0)")
+        : `100 coins came out ${newHeads} heads (x = 1) and ${newTails} tails (x = 0)`;
+      d3.select("#outcome").text(outcome);
+      update();
+    }
+
+    d3.select("#throw-coin").on("click", () => throwCoins(1));
+    d3.select("#throw-100-coins").on("click", () => throwCoins(100));
+    d3.select("#reset").on("click", () => {
+      heads = 0;
+      tails = 0;
+      d3.select("#outcome").text("No coin thrown yet");
+      mlePath.interrupt().style("opacity", 0);
+      mleUnavailable.style("display", null);
       update();
     });
 

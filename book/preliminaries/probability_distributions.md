@@ -240,7 +240,7 @@ which will then move the prior to a new range. Note that here we do not have a s
 
 The widget below compares both approaches as observations arrive. Each coin is sampled from a Bernoulli distribution with $\mu=0.5$. The Bayesian estimate starts from the conjugate $\operatorname{Beta}(2,2)$ prior and updates its density after every observation, while the dashed line shows the maximum likelihood estimate from the same observations.
 
-<iframe src="../_static/bernoulli-fitting.html" width="100%" height="440" frameborder="0" title="Interactive comparison of Bayesian and maximum likelihood Bernoulli fitting"></iframe>
+<iframe src="../_static/bernoulli-fitting.html" width="100%" height="540" frameborder="0" title="Interactive comparison of Bayesian and maximum likelihood Bernoulli fitting"></iframe>
 
 ```{admonition} Further Reading    
 :class: tip    
