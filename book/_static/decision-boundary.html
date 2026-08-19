@@ -74,12 +74,14 @@
 
   const plot = { left: 48, right: 608, top: 54, bottom: 340 };
   const matrix = { left: 690, top: 135, size: 170 };
-  const x = d3v.scaleLinear().domain([-4, 5]).range([plot.left, plot.right]);
-  const y = d3v.scaleLinear().domain([0, 0.37]).range([plot.bottom, plot.top]);
+  const domain = [0, 6];
+  const x = d3v.scaleLinear().domain(domain).range([plot.left, plot.right]);
+  const y = d3v.scaleLinear().domain([0, 0.5]).range([plot.bottom, plot.top]);
   const normal = (v, mean, sd, weight) => weight * Math.exp(-0.5 * ((v - mean) / sd) ** 2) / (sd * Math.sqrt(2 * Math.PI));
-  const density1 = v => normal(v, -1.15, 1.18, 0.88);
-  const density2 = v => normal(v, 1.25, 1.02, 0.74);
-  const samples = d3v.range(-4, 5.001, 0.015);
+  const density1 = v => normal(v, 2, 0.85, 1);
+  const density2 = v => normal(v, 4, 0.85, 1);
+  const crossing = 3;
+  const samples = d3v.range(domain[0], domain[1] + 0.001, 0.01);
   const line = d3v.line().x(d => x(d)).y(d => y(density1(d))).curve(d3v.curveBasis);
   const line2 = d3v.line().x(d => x(d)).y(d => y(density2(d))).curve(d3v.curveBasis);
   const defs = svg.append("defs");
@@ -104,8 +106,8 @@
 
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#017188").attr("d", line);
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#c3312f").attr("d", line2);
-  g.append("text").attr("x", x(-1.65)).attr("y", y(0.33)).attr("class", "region-label").attr("fill", "#017188").text("p(x, C₁)");
-  g.append("text").attr("x", x(1.45)).attr("y", y(0.315)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, C₂)");
+  g.append("text").attr("x", x(1.55)).attr("y", y(0.43)).attr("class", "region-label").attr("fill", "#017188").text("p(x, C₁)");
+  g.append("text").attr("x", x(4.12)).attr("y", y(0.43)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, C₂)");
 
   const boundaryGroup = g.append("g");
   const boundary = boundaryGroup.append("line").attr("class", "boundary");
@@ -147,14 +149,10 @@
     return total;
   };
   const maxValues = {
-    tn: integral(density1, -4, 5), fp: integral(density1, -4, 5),
-    fn: integral(density2, -4, 5), tp: integral(density2, -4, 5)
+    tn: integral(density1, ...domain), fp: integral(density1, ...domain),
+    fn: integral(density2, ...domain), tp: integral(density2, ...domain)
   };
-  const crossing = samples.filter(value => value >= -0.5 && value <= 0.8).reduce((best, value) =>
-    Math.abs(density1(value) - density2(value)) < Math.abs(density1(best) - density2(best)) ? value : best,
-    -0.5
-  );
-  let decision = 0.75;
+  let decision = 3.7;
 
   function update() {
     const bx = x(decision);
@@ -177,8 +175,8 @@
     regionRight.attr("x", (bx + plot.right) / 2);
 
     const values = {
-      tn: integral(density1, -4, decision), fp: integral(density1, decision, 5),
-      fn: integral(density2, -4, decision), tp: integral(density2, decision, 5)
+      tn: integral(density1, domain[0], decision), fp: integral(density1, decision, domain[1]),
+      fn: integral(density2, domain[0], decision), tp: integral(density2, decision, domain[1])
     };
     cellRects.each(function(d) {
       const proportion = Math.max(0, Math.min(1, values[d.key] / maxValues[d.key]));
@@ -188,23 +186,47 @@
         .attr("y", matrix.top + d.row * cellSize + (cellSize - side) / 2)
         .attr("width", side).attr("height", side);
     });
+    const clipDiagonal = (polygon, threshold, keepLower) => {
+      const output = [];
+      polygon.forEach((point, index) => {
+        const previous = polygon[(index + polygon.length - 1) % polygon.length];
+        const pointInside = keepLower ? point[0] + point[1] <= threshold : point[0] + point[1] >= threshold;
+        const previousInside = keepLower ? previous[0] + previous[1] <= threshold : previous[0] + previous[1] >= threshold;
+        if (pointInside !== previousInside) {
+          const ratio = (threshold - previous[0] - previous[1]) /
+            ((point[0] + point[1]) - (previous[0] + previous[1]));
+          output.push([
+            previous[0] + ratio * (point[0] - previous[0]),
+            previous[1] + ratio * (point[1] - previous[1])
+          ]);
+        }
+        if (pointInside) output.push(point);
+      });
+      return output;
+    };
     const setErrorCell = (light, dark, divider, col, row, total, maximum, lightValue) => {
       const side = cellSize * Math.sqrt(total / maximum) * 0.9;
       const x0 = matrix.left + col * cellSize + (cellSize - side) / 2;
       const y0 = matrix.top + row * cellSize + (cellSize - side) / 2;
-      const square = `${x0},${y0} ${x0 + side},${y0} ${x0 + side},${y0 + side} ${x0},${y0 + side}`;
-      if (lightValue <= 1e-6) {
-        light.attr("points", "");
-        dark.attr("points", square);
+      const lightShare = total > 0 ? Math.max(0, Math.min(1, lightValue / total)) : 0;
+      const threshold = lightShare <= 0.5
+        ? Math.sqrt(2 * lightShare)
+        : 2 - Math.sqrt(2 * (1 - lightShare));
+      const square = [[0, 0], [1, 0], [1, 1], [0, 1]];
+      const toPoints = polygon => polygon.map(([px, py]) => `${x0 + px * side},${y0 + py * side}`).join(" ");
+      light.attr("points", toPoints(clipDiagonal(square, threshold, true)));
+      dark.attr("points", toPoints(clipDiagonal(square, threshold, false)));
+
+      if (lightShare <= 0 || lightShare >= 1) {
         divider.attr("display", "none");
-        return;
+      } else {
+        const endpoints = threshold <= 1
+          ? [[0, threshold], [threshold, 0]]
+          : [[threshold - 1, 1], [1, threshold - 1]];
+        divider.attr("display", null)
+          .attr("x1", x0 + endpoints[0][0] * side).attr("y1", y0 + endpoints[0][1] * side)
+          .attr("x2", x0 + endpoints[1][0] * side).attr("y2", y0 + endpoints[1][1] * side);
       }
-      const lightShare = Math.max(0, Math.min(1, lightValue / total));
-      const split = x0 + side * lightShare;
-      light.attr("points", square);
-      dark.attr("points", `${split},${y0} ${x0 + side},${y0} ${x0 + side},${y0 + side}`);
-      divider.attr("display", null).attr("x1", split).attr("y1", y0)
-        .attr("x2", x0 + side).attr("y2", y0 + side);
     };
     const greenLightValue = decision > crossing ? integral(density2, crossing, decision) : 0;
     const blueLightValue = decision < crossing ? integral(density1, decision, crossing) : 0;
@@ -213,7 +235,7 @@
   }
 
   boundaryGroup.call(d3v.drag().on("drag", event => {
-    decision = Math.max(-3.75, Math.min(4.75, x.invert(event.x)));
+    decision = Math.max(domain[0] + 0.05, Math.min(domain[1] - 0.05, x.invert(event.x)));
     update();
   }));
   svg.on("pointerdown", event => {
