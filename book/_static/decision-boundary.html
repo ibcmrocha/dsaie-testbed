@@ -110,8 +110,8 @@
 
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#017188").attr("d", line);
   g.append("path").datum(samples).attr("class", "curve").attr("stroke", "#c3312f").attr("d", line2);
-  g.append("text").attr("x", x(1.55)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#017188").text("p(x, 𝒞₁)");
-  g.append("text").attr("x", x(4.12)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, 𝒞₂)");
+  g.append("text").attr("x", x(1.55)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#017188").text("p(x, C₁)");
+  g.append("text").attr("x", x(4.12)).attr("y", y(0.49)).attr("class", "region-label").attr("fill", "#c3312f").text("p(x, C₂)");
 
   const boundaryGroup = g.append("g");
   const boundary = boundaryGroup.append("line").attr("class", "boundary");
@@ -120,11 +120,11 @@
   const boundaryText = boundaryGroup.append("text").attr("text-anchor", "middle").attr("font-size", 14).attr("y", 28).text("Decision boundary");
 
   g.append("text").attr("x", matrix.left + matrix.size / 2).attr("y", matrix.top - 17).attr("text-anchor", "middle").attr("font-size", 15).text("Actual class");
-  g.append("text").attr("x", matrix.left + matrix.size * 0.25).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₁");
-  g.append("text").attr("x", matrix.left + matrix.size * 0.75).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₂");
+  g.append("text").attr("x", matrix.left + matrix.size * 0.25).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
+  g.append("text").attr("x", matrix.left + matrix.size * 0.75).attr("y", matrix.top + matrix.size + 25).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
   g.append("text").attr("transform", `translate(${matrix.left - 37},${matrix.top + matrix.size / 2}) rotate(-90)`).attr("text-anchor", "middle").attr("font-size", 15).text("Prediction");
-  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.25 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₁");
-  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.75 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("𝒞₂");
+  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.25 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₁");
+  g.append("text").attr("x", matrix.left + matrix.size + 22).attr("y", matrix.top + matrix.size * 0.75 + 5).attr("class", "matrix-label").attr("text-anchor", "middle").text("C₂");
 
   const cells = [
     { key: "tn", col: 0, row: 0, color: "#017188", opacity: 0.2 },
