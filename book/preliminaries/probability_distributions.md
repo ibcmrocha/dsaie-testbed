@@ -238,6 +238,10 @@ $$(prelim_bayesfit)
 
 which will then move the prior to a new range. Note that here we do not have a single value for $\mu$ but a distribution. By observing more and more data, it stands to reason that the variance of $p(\mu\vert\mathcal{D})$ should gradually decrease, until the observations give such overwhelming evidence that $p(\mu)$ will be highly peaked around its true value.
 
+The widget below compares both approaches as observations arrive. Each coin is sampled from a Bernoulli distribution with $\mu=0.5$. The Bayesian estimate starts from the conjugate $\operatorname{Beta}(2,2)$ prior and updates its density after every observation, while the dashed line shows the maximum likelihood estimate from the same observations.
+
+<iframe src="../_static/bernoulli-fitting.html" width="100%" height="540" frameborder="0" title="Interactive comparison of Bayesian and maximum likelihood Bernoulli fitting"></iframe>
+
 ```{admonition} Further Reading    
 :class: tip    
 Read Section 2.1.1 to see how a Bayesian treatment can be given to the Bernoulli distribution. Pay attention to the important concept of **conjugate priors**.
@@ -250,4 +254,4 @@ Read Section 2.1.1 to see how a Bayesian treatment can be given to the Bernoulli
 In the exam you might be asked to derive simple relations from known probability distributions. All the necessary mathematical expressions will be given to you, so no need to memorize anything. You might also be asked conceptual questions about these distributions, such as which variable types they model or how their parameters are calibrated.
 +++    
 {bdg-primary}`written-exam`    
-``` 
+```

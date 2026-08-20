@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Bernoulli fitting</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root {
+      --c-posterior: #0076c2;
+      --c-mle: #ec6842;
+      --c-grid: #ffffff;
+      --c-axis: #7f8794;
+      --c-border: #dde3ea;
+      --c-muted: #5f6b7a;
+      --c-surface: #ffffff;
+      --c-panel: #eaeaf2;
+      --c-button: #0076c2;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      min-height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #1b1f24;
+      background: var(--c-surface);
+    }
+
+    .widget-shell { width: 100%; padding: 12px; }
+
+    .widget-card {
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      background: var(--c-surface);
+      box-shadow: 0 1px 3px rgba(12, 35, 64, 0.06);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px 16px;
+      min-height: 72px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #edf1f5;
+      background: #f7f9fb;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--c-button);
+      border-radius: 6px;
+      padding: 8px 14px;
+      color: #ffffff;
+      background: var(--c-button);
+      font: inherit;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover { background: #005a94; }
+    button:focus-visible { outline: 3px solid rgba(0, 118, 194, 0.3); outline-offset: 2px; }
+
+    button.secondary {
+      color: var(--c-button);
+      background: var(--c-surface);
+    }
+
+    button.secondary:hover { background: #eaf5fb; }
+
+    .outcome {
+      flex: 1 1 210px;
+      min-height: 24px;
+      font-weight: 600;
+    }
+
+    .counts {
+      color: var(--c-muted);
+      font-size: 0.875rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chart-wrap { width: 100%; padding: 8px 10px 4px; }
+    svg { display: block; width: 100%; height: auto; }
+    .plot-background { fill: var(--c-panel); }
+    .grid line { stroke: var(--c-grid); stroke-width: 1.5; }
+    .grid path { display: none; }
+    .axis path, .axis line { stroke: var(--c-axis); }
+    .axis text { fill: var(--c-muted); font-size: 12px; }
+    .axis-label { fill: #1b1f24; font-size: 13px; }
+    .posterior-area { fill: var(--c-posterior); opacity: 0.16; }
+    .posterior-line { fill: none; stroke: var(--c-posterior); stroke-width: 2.5; }
+    .mle-line { stroke: var(--c-mle); stroke-width: 2.5; stroke-dasharray: 7 5; }
+    .legend text { fill: #1b1f24; font-size: 12px; }
+    .mle-unavailable { fill: var(--c-muted); font-size: 12px; font-style: italic; }
+  </style>
+</head>
+<body>
+  <main class="widget-shell">
+    <section class="widget-card" aria-label="Interactive Bernoulli distribution fitting">
+      <div class="controls">
+        <div class="button-group">
+          <button id="throw-coin" type="button">Throw a coin</button>
+          <button id="throw-100-coins" type="button">Throw 100 coins</button>
+          <button id="throw-1000-coins" type="button">Throw 1000 coins</button>
+          <button id="reset" class="secondary" type="button">Reset</button>
+        </div>
+        <div id="outcome" class="outcome" role="status" aria-live="polite">No coin thrown yet</div>
+        <div id="counts" class="counts">0 observations · 0 heads · 0 tails</div>
+      </div>
+      <div class="chart-wrap">
+        <svg id="chart" viewBox="0 0 760 390" role="img" aria-labelledby="chart-title chart-description">
+          <title id="chart-title">Bayesian and maximum likelihood estimates of a coin's Bernoulli parameter</title>
+          <desc id="chart-description">The beta prior or posterior density and, after the first observation, a dashed vertical line for the maximum likelihood estimate.</desc>
+        </svg>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const priorA = 2;
+    const priorB = 2;
+    let heads = 0;
+    let tails = 0;
+
+    const svg = d3.select("#chart");
+    const width = 760;
+    const height = 390;
+    const margin = { top: 54, right: 28, bottom: 64, left: 66 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+    const x = d3.scaleLinear().domain([0, 1]).range([0, innerWidth]);
+    const y = d3.scaleLinear().range([innerHeight, 0]);
+    const plot = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    plot.append("rect")
+      .attr("class", "plot-background")
+      .attr("width", innerWidth)
+      .attr("height", innerHeight);
+
+    const yGrid = plot.append("g").attr("class", "grid");
+    const yAxis = plot.append("g").attr("class", "axis");
+    plot.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format(".1f")));
+
+    plot.append("text")
+      .attr("class", "axis-label")
+      .attr("x", innerWidth / 2)
+      .attr("y", innerHeight + 46)
+      .attr("text-anchor", "middle")
+      .text("μ [p(throw = heads)]");
+
+    plot.append("text")
+      .attr("class", "axis-label")
+      .attr("transform", "rotate(-90)")
+      .attr("x", -innerHeight / 2)
+      .attr("y", -48)
+      .attr("text-anchor", "middle")
+      .text("density p(μ)");
+
+    const areaPath = plot.append("path").attr("class", "posterior-area");
+    const densityPath = plot.append("path").attr("class", "posterior-line");
+    const mlePath = plot.append("line").attr("class", "mle-line").style("opacity", 0);
+    const mleUnavailable = plot.append("text")
+      .attr("class", "mle-unavailable")
+      .attr("x", innerWidth)
+      .attr("y", 18)
+      .attr("text-anchor", "end")
+      .text("MLE undefined with zero observations");
+
+    const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${margin.left},22)`);
+    legend.append("line").attr("x2", 26).attr("y1", 6).attr("y2", 6).attr("stroke", "var(--c-posterior)").attr("stroke-width", 3);
+    const posteriorLegend = legend.append("text").attr("x", 34).attr("y", 10);
+    const mleLegend = legend.append("g").attr("transform", "translate(250,0)");
+    mleLegend.append("line").attr("x2", 26).attr("y1", 6).attr("y2", 6).attr("stroke", "var(--c-mle)").attr("stroke-width", 2.5).attr("stroke-dasharray", "7 5");
+    mleLegend.append("text").attr("x", 34).attr("y", 10).text("MLE μ̂");
+
+    function logGamma(z) {
+      const coefficients = [676.5203681218851, -1259.1392167224028, 771.3234287776531,
+        -176.6150291621406, 12.507343278686905, -0.13857109526572012,
+        9.984369578019572e-6, 1.5056327351493116e-7];
+      if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+      z -= 1;
+      let sum = 0.9999999999998099;
+      coefficients.forEach((coefficient, index) => { sum += coefficient / (z + index + 1); });
+      const t = z + coefficients.length - 0.5;
+      return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(sum);
+    }
+
+    function betaDensity(mu, a, b) {
+      if (mu <= 0 || mu >= 1) return 0;
+      const logBeta = logGamma(a) + logGamma(b) - logGamma(a + b);
+      return Math.exp((a - 1) * Math.log(mu) + (b - 1) * Math.log(1 - mu) - logBeta);
+    }
+
+    function update(animate = true) {
+      const observations = heads + tails;
+      const a = priorA + heads;
+      const b = priorB + tails;
+      const density = d3.range(201).map(index => {
+        const mu = index / 200;
+        return { mu, value: betaDensity(mu, a, b) };
+      });
+      const maxDensity = d3.max(density, d => d.value);
+      y.domain([0, maxDensity * 1.12]).nice();
+
+      yGrid.transition().duration(animate ? 550 : 0)
+        .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(""));
+      yAxis.transition().duration(animate ? 550 : 0).call(d3.axisLeft(y).ticks(5));
+
+      const area = d3.area().x(d => x(d.mu)).y0(innerHeight).y1(d => y(d.value)).curve(d3.curveMonotoneX);
+      const line = d3.line().x(d => x(d.mu)).y(d => y(d.value)).curve(d3.curveMonotoneX);
+      areaPath.datum(density).transition().duration(animate ? 650 : 0).attr("d", area);
+      densityPath.datum(density).transition().duration(animate ? 650 : 0).attr("d", line);
+
+      posteriorLegend.text(observations === 0 ? "Beta(2, 2) prior" : `Beta(${a}, ${b}) posterior`);
+      d3.select("#counts").text(`${observations} observation${observations === 1 ? "" : "s"} · ${heads} heads · ${tails} tails`);
+
+      if (observations > 0) {
+        const mle = heads / observations;
+        mlePath
+          .attr("y1", 0).attr("y2", innerHeight)
+          .transition().duration(animate ? 650 : 0)
+          .attr("x1", x(mle)).attr("x2", x(mle)).style("opacity", 1);
+        mleUnavailable.style("display", "none");
+      }
+    }
+
+    function throwCoins(numberOfCoins) {
+      let newHeads = 0;
+      for (let index = 0; index < numberOfCoins; index += 1) {
+        if (Math.random() < 0.5) newHeads += 1;
+      }
+      const newTails = numberOfCoins - newHeads;
+      heads += newHeads;
+      tails += newTails;
+
+      const outcome = numberOfCoins === 1
+        ? (newHeads === 1 ? "coin came out heads (x = 1)" : "coin came out tails (x = 0)")
+        : `${numberOfCoins} coins came out ${newHeads} heads (x = 1) and ${newTails} tails (x = 0)`;
+      d3.select("#outcome").text(outcome);
+      update();
+    }
+
+    d3.select("#throw-coin").on("click", () => throwCoins(1));
+    d3.select("#throw-100-coins").on("click", () => throwCoins(100));
+    d3.select("#throw-1000-coins").on("click", () => throwCoins(1000));
+    d3.select("#reset").on("click", () => {
+      heads = 0;
+      tails = 0;
+      d3.select("#outcome").text("No coin thrown yet");
+      mlePath.interrupt().style("opacity", 0);
+      mleUnavailable.style("display", null);
+      update();
+    });
+
+    update(false);
+  </script>
+</body>
+</html>
