@@ -1,6 +1,6 @@
 # Decision Theory
 
-We now focus on a very different class of problems. In constrast to making continuous predictions for regression problems, we now want to make an informed choice between two or more discrete **classes** given some input values. 
+We now focus on a very different class of problems. In constrast to making continuous predictions for regression problems, we now want to make an informed choice between two or more discrete **classes** given some input values.
 
 This is a popular problem in machine learning, e.g. in computer vision, a classification model can be trained to classify pictures of animals, or to identify the occurence of cancer based on x-ray images. In civil engineering, we can think of a number of relevant situations on which classification problems arise:
 
@@ -48,12 +48,9 @@ and now we have posterior probabilities $p(\mathcal{C}_k\vert\mathbf{x})$ for ea
 
 To get to the answer it is easier to look at the problem in 1D and with just two classes. Imagine we have the exact joints for our two classes, and since $\mathcal{C}$ is discrete it suffices to plot both together as functions of $x$:
 
-```{figure} ../figures/decisionboundaries1.svg
-:scale: 50%
-:name: decisionboundaries1
+<iframe src="../_static/decision-boundary.html" width="100%" height="510" frameborder="0" loading="lazy" title="Interactive two-class decision boundary and confusion matrix"></iframe>
 
-A two-class classification problem in 1D. We assume a decision boundary between the classes and notice this is not actually the best choice.
-```
+<p id="decisionboundaries1" style="text-align: center;"><em>A two-class classification problem in 1D. Move the decision boundary in the interactive figure and notice this is not always the best choice.</em></p>
 
 We define a **decision boundary** as shown above: to the left of it we classify an observation of $x$ as $\mathcal{C}_1$, to the right of it we classify as $\mathcal{C}_2$. Now we investigate if this position for the boundary makes sense:
 
@@ -80,12 +77,12 @@ Example of resulting posterior distributions over classes, plotted against input
 
 This is of course a very intuitive result: given a new point, we compute the probability that it belongs to each of our classes, and finally make the pragmatic choice of assigning it to the class with the highest probability. It is reassuring to see that, on average, this approach will lead to the least amount of misclassifications.
 
-```{admonition} Further Reading    
-:class: tip    
+```{admonition} Further Reading
+:class: tip
 What if different misclassifications have different consequences? If a bridge is about to collapse, there is a high cost involved in classifying it as healthy, while classifying a healthy bridge as defective is much less harmful. You can find out how to compensate for that by reading the short Sections 1.5.2 and 1.5.3.
-+++                         
-{bdg-danger}`bishop-prml`     
-``` 
++++
+{bdg-danger}`bishop-prml`
+```
 
 ## Modeling approaches
 
@@ -111,9 +108,9 @@ We take a shortcut and directly infer the posteriors $p(\mathcal{C}_k\vert\mathb
 We take an even shorter path and fit a function $f(\mathbf{x})$ that directly gives us a class label. This approach is completely deterministic.
 ````
 
-```{admonition} Exam questions    
-:class: danger    
+```{admonition} Exam questions
+:class: danger
 You should not expect numerical questions related to this topic in the exam. You should instead focus on the concepts: relating the discussion here with decision theory for regression, arriving at a decision rule for classification, and the different modeling approaches.
-+++    
-{bdg-primary}`written-exam`    
-``` 
++++
+{bdg-primary}`written-exam`
+```
