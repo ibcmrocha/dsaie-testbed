@@ -401,7 +401,7 @@ Click below to see three different radial basis function models fitted to the sa
 
 Use the interactive comparison below to see how the prior precision $\alpha$ and
 noise precision $\beta$ affect all five polynomial weights, the MAP estimate,
-and the full Bayesian predictive distribution. Resample the five observations
+and the full Bayesian predictive distribution. Resample the ten observations
 to see which conclusions persist across datasets.
 
 <iframe src="../_static/bayesian-linear-models.html" style="width: 100%; height: 720px; border: 0;" loading="lazy" title="Interactive comparison of MLE, MAP and Bayesian polynomial regression"></iframe>
