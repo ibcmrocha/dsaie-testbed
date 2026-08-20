@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clustering by eye</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root { color-scheme: light; --blue: #277da1; --orange: #f3722c; --ink: #252525; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); }
+    .widget { max-width: 900px; margin: 0 auto; padding: 8px 4px; }
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .dimension-group { display: flex; gap: 4px; }
+    button { border: 1px solid #bbb; border-radius: 4px; background: #f7f7f7; color: #222; padding: 7px 12px; font: inherit; font-size: .88rem; cursor: pointer; }
+    button:hover { background: #ececec; }
+    button.active { color: white; background: #277da1; border-color: #277da1; }
+    .score { margin-left: auto; color: #444; font-size: .88rem; font-weight: 600; }
+    .score[hidden] { display: none; }
+    .plot-shell { min-height: 450px; border: 1px solid #ddd; background: #fafafa; position: relative; overflow: hidden; }
+    .instruction { text-align: center; color: #555; font-size: .88rem; margin: 10px 8px 2px; }
+    svg { display: block; width: 100%; height: auto; }
+    .axis text, .axis-label, .legend { font-size: 12px; fill: #444; }
+    .axis path, .axis line { stroke: #999; }
+    .point { cursor: pointer; }
+    .point .guess { stroke: none; opacity: .72; }
+    .point .cross { stroke: #171717; stroke-width: 2; pointer-events: none; }
+    .point .answer-ring { fill: none; stroke-width: 3; opacity: 0; pointer-events: none; }
+    .point .answer-ring.cluster-2 { stroke-dasharray: 3 3; }
+    .point-label { fill: #333; font-size: 11px; font-weight: 600; pointer-events: none; paint-order: stroke; stroke: white; stroke-width: 3px; stroke-linejoin: round; }
+    .answer-visible .answer-ring { opacity: 1; }
+    @media (max-width: 520px) {
+      button { padding: 6px 9px; }
+      .score { margin-left: 0; flex-basis: 100%; }
+      .plot-shell { min-height: 520px; }
+    }
+  </style>
+</head>
+<body>
+<main class="widget" aria-label="Manual k-means clustering activity">
+  <div class="controls">
+    <div class="dimension-group" role="group" aria-label="Number of dimensions">
+      <button class="dim active" data-dim="1">1D</button>
+      <button class="dim" data-dim="2">2D</button>
+      <button class="dim" data-dim="4">4D</button>
+    </div>
+    <button id="randomize">Randomize data</button>
+    <span id="score" class="score" role="status" aria-live="polite" hidden></span>
+    <button id="answer" class="answer" aria-pressed="false">Show answer</button>
+  </div>
+  <section class="plot-shell">
+    <p class="instruction">Click points to move them between your two clusters. Coloured circles show your guess; crosses identify the same observation.</p>
+    <div id="plot"></div>
+  </section>
+</main>
+<script>
+(() => {
+  const colours = ["#277da1", "#f3722c"];
+  const names = ["Your cluster 1", "Your cluster 2"];
+  const subscripts = ["₁", "₂", "₃", "₄"];
+  let dimension = 1;
+  let data = [];
+  let answerVisible = false;
+
+  function normal() {
+    let u = 0, v = 0;
+    while (!u) u = Math.random();
+    while (!v) v = Math.random();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  function sample(dim) {
+    const settings = {
+      1: { mean: [1.8], sd: .5 },
+      2: { mean: [1.25, 1.0], sd: .6 },
+      // Each coordinate is ambiguous, while their combined 4D displacement is informative.
+      4: { mean: [.72, .72, .72, .72], sd: .92 }
+    }[dim];
+    const points = d3.range(10).map(i => {
+      const source = i < 5 ? 0 : 1;
+      const sign = source ? 1 : -1;
+      return { id: i, values: settings.mean.map(m => sign * m + settings.sd * normal()), guess: 1 };
+    });
+    // Avoid making point identity encode the generated group.
+    return d3.shuffle(points).map((d, i) => ({ ...d, id: i }));
+  }
+
+  function kmeans(points, dims) {
+    const first = points[0];
+    const farthest = d3.greatest(points, p => d3.sum(d3.range(dims), j => (p.values[j] - first.values[j]) ** 2));
+    let centres = [first.values.slice(), farthest.values.slice()];
+    let labels = new Array(points.length).fill(0);
+    for (let iteration = 0; iteration < 50; iteration++) {
+      const next = points.map(p => {
+        const distances = centres.map(c => d3.sum(d3.range(dims), j => (p.values[j] - c[j]) ** 2));
+        return distances[1] < distances[0] ? 1 : 0;
+      });
+      const changed = next.some((label, i) => label !== labels[i]);
+      labels = next;
+      centres = centres.map((centre, k) => d3.range(dims).map(j => {
+        const members = points.filter((_, i) => labels[i] === k);
+        return members.length ? d3.mean(members, p => p.values[j]) : centre[j];
+      }));
+      if (!changed && iteration) break;
+    }
+    // Keep answer colours stable: cluster 1 has the smaller first-coordinate centre.
+    if (centres[0][0] > centres[1][0]) labels = labels.map(d => 1 - d);
+    points.forEach((p, i) => { p.answer = labels[i]; });
+  }
+
+  function point(group, x, y, radius) {
+    group.attr("class", "point").attr("transform", d => `translate(${x(d)},${y(d)})`)
+      .attr("role", "button").attr("tabindex", 0)
+      .attr("aria-label", d => `Observation ${d.id + 1}, ${names[d.guess]}`);
+    group.append("circle").attr("class", "guess").attr("r", radius)
+      .attr("fill", d => colours[d.guess]);
+    group.append("path").attr("class", "cross").attr("d", `M-${radius * .45},-${radius * .45}L${radius * .45},${radius * .45}M${radius * .45},-${radius * .45}L-${radius * .45},${radius * .45}`);
+    group.append("circle").attr("class", "answer-ring").attr("r", radius + 4)
+      .classed("cluster-2", d => d.answer === 1).attr("stroke", "#171717");
+    group.append("text").attr("class", "point-label").attr("x", radius + 3).attr("y", -radius + 2)
+      .text(d => d.id + 1);
+    group.on("click", (_, d) => toggle(d.id)).on("keydown", (event, d) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); toggle(d.id); }
+    });
+  }
+
+  function toggle(id) {
+    const item = data.find(d => d.id === id);
+    item.guess = 1 - item.guess;
+    d3.selectAll(".point").filter(d => d.id === id).select(".guess").transition().duration(180).attr("fill", colours[item.guess]);
+    d3.selectAll(".point").filter(d => d.id === id).attr("aria-label", `Observation ${id + 1}, ${names[item.guess]}`);
+    if (answerVisible) updateScore();
+  }
+
+  function updateScore() {
+    const direct = d3.sum(data, d => d.guess === d.answer ? 1 : 0);
+    const correct = Math.max(direct, data.length - direct);
+    d3.select("#score").text(`You clustered correctly: ${correct}/${data.length} points`).attr("hidden", null);
+  }
+
+  function draw() {
+    kmeans(data, dimension);
+    const host = d3.select("#plot");
+    host.selectAll("svg").transition().duration(180).style("opacity", 0).remove();
+    const width = 880;
+    const height = dimension === 4 ? 500 : 430;
+    const svg = host.append("svg").attr("viewBox", `0 0 ${width} ${height}`).style("opacity", 0)
+      .classed("answer-visible", answerVisible);
+    svg.transition().delay(170).duration(280).style("opacity", 1);
+    dimension === 4 ? drawMatrix(svg, width) : drawSingle(svg, width, height);
+    drawLegend(svg, width, height);
+  }
+
+  function extent(j) {
+    const e = d3.extent(data, d => d.values[j]);
+    const pad = Math.max((e[1] - e[0]) * .18, .35);
+    return [e[0] - pad, e[1] + pad];
+  }
+
+  function drawSingle(svg, width, height) {
+    const margin = { top: 35, right: 45, bottom: 75, left: 65 };
+    const x = d3.scaleLinear().domain(extent(0)).range([margin.left, width - margin.right]);
+    const y = dimension === 1 ? () => 190 : d3.scaleLinear().domain(extent(1)).range([height - margin.bottom, margin.top]);
+    svg.append("g").attr("class", "axis").attr("transform", `translate(0,${dimension === 1 ? 210 : height - margin.bottom})`).call(d3.axisBottom(x));
+    svg.append("text").attr("class", "axis-label").attr("x", width / 2).attr("y", dimension === 1 ? 250 : height - 38).attr("text-anchor", "middle").text("x₁");
+    if (dimension === 2) {
+      svg.append("g").attr("class", "axis").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(y));
+      svg.append("text").attr("class", "axis-label").attr("transform", "rotate(-90)").attr("x", -(height - margin.bottom + margin.top) / 2).attr("y", 18).attr("text-anchor", "middle").text("x₂");
+    }
+    const groups = svg.append("g").selectAll("g").data(data, d => d.id).join("g");
+    point(groups, d => x(d.values[0]), d => y(d.values[1]), 10);
+  }
+
+  function drawMatrix(svg, width) {
+    const pairs = [[0,1], [0,2], [0,3], [1,2], [1,3], [2,3]];
+    const gap = 24, left = 55, top = 18, panelW = (width - left - 20 - 2 * gap) / 3, panelH = 175;
+    pairs.forEach(([a, b], index) => {
+      const col = index % 3, row = Math.floor(index / 3), ox = left + col * (panelW + gap), oy = top + row * 225;
+      const x = d3.scaleLinear().domain(extent(a)).range([ox, ox + panelW]);
+      const y = d3.scaleLinear().domain(extent(b)).range([oy + panelH, oy]);
+      svg.append("g").attr("class", "axis").attr("transform", `translate(0,${oy + panelH})`).call(d3.axisBottom(x).tickValues([]));
+      svg.append("g").attr("class", "axis").attr("transform", `translate(${ox},0)`).call(d3.axisLeft(y).tickValues([]));
+      svg.append("text").attr("class", "axis-label").attr("x", ox + panelW / 2).attr("y", oy + panelH + 16).attr("text-anchor", "middle").text(`x${subscripts[a]}`);
+      svg.append("text").attr("class", "axis-label").attr("transform", `translate(${ox - 16},${oy + panelH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(`x${subscripts[b]}`);
+      const groups = svg.append("g").selectAll("g").data(data, d => d.id).join("g");
+      point(groups, d => x(d.values[a]), d => y(d.values[b]), 7);
+    });
+  }
+
+  function drawLegend(svg, width, height) {
+    const legend = svg.append("g").attr("class", "legend").attr("transform", `translate(${width / 2 - 275},${height - 18})`);
+    [0, 1].forEach((k, i) => {
+      const g = legend.append("g").attr("transform", `translate(${i * 140},0)`);
+      g.append("circle").attr("r", 7).attr("fill", colours[k]).attr("opacity", .72);
+      g.append("text").attr("x", 12).attr("y", 4).text(names[k]);
+    });
+    const answer = legend.append("g").attr("transform", "translate(280,0)").style("opacity", answerVisible ? 1 : 0);
+    [0, 1].forEach((k, i) => {
+      const g = answer.append("g").attr("transform", `translate(${i * 145},0)`);
+      g.append("circle").attr("r", 9).attr("fill", "none").attr("stroke", "#171717").attr("stroke-width", 3)
+        .attr("stroke-dasharray", k ? "3 3" : null);
+      g.append("text").attr("x", 14).attr("y", 4).text(`k-means cluster ${k + 1}`);
+    });
+  }
+
+  function reset() {
+    data = sample(dimension);
+    answerVisible = false;
+    d3.select("#answer").text("Show answer").attr("aria-pressed", "false");
+    d3.select("#score").attr("hidden", true).text("");
+    draw();
+  }
+
+  d3.selectAll(".dim").on("click", function() {
+    dimension = +this.dataset.dim;
+    d3.selectAll(".dim").classed("active", false);
+    d3.select(this).classed("active", true);
+    reset();
+  });
+  d3.select("#randomize").on("click", reset);
+  d3.select("#answer").on("click", function() {
+    answerVisible = !answerVisible;
+    d3.select(this).text(answerVisible ? "Hide answer" : "Show answer").attr("aria-pressed", answerVisible);
+    if (answerVisible) updateScore();
+    else d3.select("#score").attr("hidden", true);
+    d3.select("svg").classed("answer-visible", answerVisible);
+    draw();
+  });
+  reset();
+})();
+</script>
+</body>
+</html>
