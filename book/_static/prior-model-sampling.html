@@ -21,8 +21,8 @@
     .bag svg { display:block; width:100%; }
     .bag:hover .sack { fill:#e6d8c4; }
     .bags { display:flex; justify-content:center; }
-    .posterior-mode .bags > div { min-width:0; flex:1; }
-    .posterior-mode .bag { width:90px; max-width:100%; }
+    .posterior-mode .bag { width:155px; max-width:100%; }
+    .posterior-bag { margin-top:10px; }
     .legend { display:flex; justify-content:center; gap:18px; margin:6px 0 0; font-size:.78rem; color:var(--muted); }
     .legend span::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
     .legend .prior-key::before { border-top-style:dashed; }
@@ -61,7 +61,7 @@
       #equation { gap:3px; margin-top:8px; }
       h2 { font-size:.92rem; padding:11px; }
     }
-    @media(max-width:600px) { .posterior-mode .prior { grid-template-columns:1fr; gap:6px; } .posterior-mode .bags > div { flex:0 1 120px; } .posterior-mode .bag { width:90px; } }
+    @media(max-width:600px) { .posterior-mode .prior { grid-template-columns:130px minmax(0,1fr); align-items:start; } .posterior-mode .bag { width:130px; } }
     .legend .data-key::before { display:none; }
     @media(max-width:360px) { #equation { gap:2px; } .value { font-size:10px; } }
     @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
@@ -125,7 +125,8 @@
     button.setAttribute('aria-label','Draw five weights from the posterior. Drag to the equation, or click then activate the equation.');
     second.querySelector('text').textContent='w|t';
     second.querySelector('.distribution').innerHTML='p(<b>w</b> | <b>t</b>)';
-    document.querySelector('.bags').append(second);
+    second.classList.add('posterior-bag');
+    document.querySelector('.settings .hint').after(second);
     document.querySelector('#beta-control').hidden=false;
     document.querySelector('#legend').hidden=false;
     document.querySelector('#chart-title').textContent='Functions sampled from the prior and posterior';
