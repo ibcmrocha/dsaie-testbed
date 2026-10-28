@@ -34,7 +34,7 @@
     .hint { color:var(--muted); font-size:.78rem; line-height:1.5; }
     .instructions { text-align:center; margin:8px 0 0; }
     .plot { min-width:0; container-type:inline-size; }
-    .toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.78rem; color:var(--muted); }
+    .toolbar { display:flex; justify-content:flex-end; align-items:center; gap:8px; font-size:.78rem; color:var(--muted); }
     #reset { border:1px solid #cfd7e3; border-radius:999px; padding:7px 12px; background:#fff; color:#243140; font-size:.86rem; }
     #reset:hover { background:#eef5fb; border-color:#7cb3df; }
     #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:5px; margin:13px 0 7px; padding:32px 4px 14px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; min-height:86px; }
@@ -97,7 +97,7 @@
       </div>
     </div>
     <div class="plot">
-      <div class="toolbar"><span id="count">0 models sampled</span><button id="reset" type="button">Reset samples</button></div>
+      <div class="toolbar"><button id="reset" type="button">Reset samples</button></div>
       <div id="equation" class="math" role="button" tabindex="0" aria-label="Insert drawn weights and plot the model" aria-disabled="true">
         <span class="variable">y</span><span>(<span class="variable">x</span>) =</span>
         <span><span class="weight">w₁</span>ϕ₁(<span class="variable">x</span>)</span><span>+</span>
@@ -222,7 +222,6 @@
     colorWeights(false);weights.each(function(_,i){d3.select(this).append('span').attr('class','value').style('margin-bottom',i%2?'14px':'0').text(format(sample.w[i]))});
     document.querySelector('#pending').replaceChildren(); ghost.hidden=true;
     equation.classList.remove('ready','over');equation.setAttribute('aria-disabled','true');
-    document.querySelector('#count').textContent=`${samples.length} model${samples.length===1?'':'s'} sampled`;
     hint.textContent=`${posteriorMode?(sample.source==='prior'?'Prior · ':'Posterior · '):''}Weights from α = ${format(sample.alpha)}${sample.source==='posterior'?`, β = ${format(sample.beta)}`:''}`;
     status.textContent='Keep the weights fixed; sweep x from left to right to trace this function.';
     d3.selectAll('.variable').classed('active',true);
@@ -257,11 +256,11 @@
     finishAnimation();samples=[];pending=null;drag=null;ghost.hidden=true;curves.selectAll('*').remove();axes();
     weights.selectAll('.value').remove();colorWeights(true);document.querySelector('#pending').replaceChildren();
     equation.classList.remove('ready','over');equation.setAttribute('aria-disabled','true');
-    document.querySelector('#count').textContent='0 models sampled';hint.textContent='Drop the weight vector here ↑';
+    hint.textContent='Drop the weight vector here ↑';
     status.textContent='Plot cleared. Draw new weights from the bag to start again.';
   });
   alphaInput.value=0; // Logarithmic slider: 10⁰ gives the default α = 1.
-  betaInput.value=1;
+  betaInput.value=Math.log10(50);
   axes();updateAlpha();updateBeta();colorWeights(true);
 })();
 </script>
