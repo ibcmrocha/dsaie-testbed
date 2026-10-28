@@ -167,12 +167,14 @@ and we now also add the $\beta$ parameter from the observation model. Since they
 Our model is in principle ready to be used. But since the above prior is not very informative, we first need to observe some data to get a better idea of what the weights actually are.
 
 Before observing any data, we can already **sample models from the prior**.
-Each draw of $\mathbf{w}$ fixes all five weights of the polynomial below and
-therefore defines a complete curve $y(x)$. Drag a weight vector from the bag
-into the equation to see this happen. Changing $\alpha$ changes the spread of
+Each draw of $\mathbf{w}$ fixes all five weights of the radial basis function
+model below and therefore defines a complete curve $y(x)$. Here, the five
+Gaussian basis functions $\phi_i(x)=\exp[-(x-\mu_i)^2/(2s^2)]$ have equally
+spaced centers $\mu_i=0,1.5,3,4.5,6$ and a fixed width $s=1$. Drag a weight
+vector from the bag into the equation to see this happen. Changing $\alpha$ changes the spread of
 future weight draws; curves already plotted keep their original weights.
 
-<iframe src="../_static/prior-model-sampling.html" style="width: 100%; height: 800px; border: 0;" loading="lazy" title="Draw polynomial models from the Gaussian weight prior"></iframe>
+<iframe src="../_static/prior-model-sampling.html" style="width: 100%; height: 800px; border: 0;" loading="lazy" title="Draw radial basis function models from the Gaussian weight prior"></iframe>
 
 ## Observing some data
 

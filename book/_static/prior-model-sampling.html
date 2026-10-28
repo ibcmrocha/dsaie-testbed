@@ -85,13 +85,14 @@
       <div class="toolbar"><span id="count">0 models sampled</span><button id="reset" type="button">Reset samples</button></div>
       <div id="equation" class="math" role="button" tabindex="0" aria-label="Insert drawn weights and plot the model" aria-disabled="true">
         <span class="variable">y</span><span>(<span class="variable">x</span>) =</span>
-        <span class="weight">w₀</span><span>+</span><span><span class="weight">w₁</span><span class="variable">x</span></span><span>+</span>
-        <span><span class="weight">w₂</span><span class="variable">x</span>²</span><span>+</span>
-        <span><span class="weight">w₃</span><span class="variable">x</span>³</span><span>+</span>
-        <span><span class="weight">w₄</span><span class="variable">x</span>⁴</span>
+        <span><span class="weight">w₁</span>φ₁</span><span>+</span>
+        <span><span class="weight">w₂</span>φ₂</span><span>+</span>
+        <span><span class="weight">w₃</span>φ₃</span><span>+</span>
+        <span><span class="weight">w₄</span>φ₄</span><span>+</span>
+        <span><span class="weight">w₅</span>φ₅</span>
       </div>
       <p id="drop-hint">Drop the weight vector here ↑</p>
-      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is one polynomial with five independently sampled Gaussian weights. The vertical axis is fixed from −3 to 3; curves outside this range are clipped.</desc></svg>
+      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is a weighted sum of five equally spaced Gaussian radial basis functions. The vertical axis adjusts to show all sampled curves.</desc></svg>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite">One draw of five weights gives one complete function y(x).</p>
@@ -104,6 +105,9 @@
   const alphaInput=document.querySelector('#alpha'), ghost=document.querySelector('#ghost');
   const status=document.querySelector('#status'), hint=document.querySelector('#drop-hint');
   let pending=null, samples=[], drag=null, animation=null;
+  // Five fixed Gaussian bases: centers 0, 1.5, 3, 4.5, 6; common width 1.
+  const centers=d3.range(5).map(i=>1.5*i), basisWidth=1;
+  const basis=(x,i)=>Math.exp(-.5*((x-centers[i])/basisWidth)**2);
   const svg=d3.select('#chart'), width=530, height=285;
   const x=d3.scaleLinear([0,6],[0,width]), y=d3.scaleLinear([-3,3],[height,0]);
   const g=svg.append('g').attr('transform','translate(56,20)');
@@ -126,7 +130,8 @@
     box.append('b').text(']');
   }
   function axes(){
-    y.domain([-3,3]);
+    const extent=samples.length?Math.max(1e-6,...samples.map(s=>d3.max(s.points,p=>Math.abs(p.y)))):1;
+    y.domain([-1.08*extent,1.08*extent]).nice();
     grid.call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(''));
     yAxis.call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2~s')));
     curves.selectAll('.sample').attr('d',s=>line(s.points));
@@ -147,14 +152,14 @@
     if(!pending)return;
     finishAnimation();
     const sample=pending; pending=null;
-    sample.points=d3.range(301).map(i=>{const x=6*i/300;return{x,y:sample.w.reduceRight((s,w)=>s*x+w,0)}});
+    sample.points=d3.range(301).map(i=>{const x=6*i/300;return{x,y:sample.w.reduce((sum,w,j)=>sum+w*basis(x,j),0)}});
     samples.push(sample); axes();
     const path=curves.append('path').datum(sample).attr('class','sample').attr('fill','none').attr('stroke',colors[(samples.length-1)%colors.length]).attr('stroke-width',2).attr('opacity',.8);
     colorWeights(false);weights.each(function(_,i){d3.select(this).append('span').attr('class','value').style('margin-bottom',i%2?'14px':'0').text(format(sample.w[i]))});
     document.querySelector('#pending').replaceChildren(); ghost.hidden=true;
     equation.classList.remove('ready','over');equation.setAttribute('aria-disabled','true');
     document.querySelector('#count').textContent=`${samples.length} model${samples.length===1?'':'s'} sampled`;
-    hint.textContent=`Weights from α = ${format(sample.alpha)} · vertical axis fixed at [−3, 3]`;
+    hint.textContent=`Weights from α = ${format(sample.alpha)} · vertical axis adjusts to fit samples`;
     status.textContent='Keep the weights fixed; sweep x from left to right to trace this function.';
     d3.selectAll('.variable').classed('active',true);
     const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
