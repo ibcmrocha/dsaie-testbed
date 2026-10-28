@@ -166,6 +166,16 @@ and we now also add the $\beta$ parameter from the observation model. Since they
 
 Our model is in principle ready to be used. But since the above prior is not very informative, we first need to observe some data to get a better idea of what the weights actually are.
 
+Before observing any data, we can already **sample models from the prior**.
+Each draw of $\mathbf{w}$ fixes all five weights of the radial basis function
+model below and therefore defines a complete curve $y(x)$. Here, the five
+Gaussian basis functions $\phi_i(x)=\exp[-(x-\mu_i)^2/(2s^2)]$ have equally
+spaced centers $\mu_i=0,1.5,3,4.5,6$ and a fixed width $s=1$. Drag a weight
+vector from the bag into the equation to see this happen. Changing $\alpha$ changes the spread of
+future weight draws; curves already plotted keep their original weights.
+
+<iframe src="../_static/prior-model-sampling.html" style="width: 100%; height: 800px; border: 0;" loading="lazy" title="Draw radial basis function models from the Gaussian weight prior"></iframe>
+
 ## Observing some data
 
 Suppose we now observe $N$ samples of $t$ values and their associated $\mathbf{x}$ values. We gather these observations in a matrix $\mathbf{X}=\left[\mathbf{x}_1,\dots,\mathbf{x}_N\right]$ and a column vector $\mathbf{t}=\left[t_1,\dots,t_N\right]^\mathrm{T}$.
@@ -266,6 +276,15 @@ $$
 $$(postvar)
 
 where $\Phi_{ij} = \phi_j(x_i)$ already appeared {doc}`in the MLE treatment<../frequentist/linear_models>`.
+
+We can now draw weights from either the prior $p(\mathbf{w})$ or the posterior
+$p(\mathbf{w}\vert\mathbf{t})$. The five crosses below are fixed observations
+at equally spaced inputs. Both bags use the same radial basis functions as
+before; the posterior also accounts for these observations. Change $\alpha$
+and the noise precision $\beta$ to explore how they affect new draws.
+Dashed curves come from the prior and solid curves from the posterior.
+
+<iframe src="../_static/prior-model-sampling.html?posterior=1" style="width: 100%; height: 1000px; border: 0;" loading="lazy" title="Draw radial basis function models from the prior and posterior"></iframe>
 
 ## Making new predictions
 
