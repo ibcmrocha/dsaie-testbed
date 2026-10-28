@@ -91,7 +91,7 @@
         <span><span class="weight">w₄</span><span class="variable">x</span>⁴</span>
       </div>
       <p id="drop-hint">Drop the weight vector here ↑</p>
-      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is one polynomial with five independently sampled Gaussian weights. The vertical axis expands to show all samples.</desc></svg>
+      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is one polynomial with five independently sampled Gaussian weights. The vertical axis is fixed from −3 to 3; curves outside this range are clipped.</desc></svg>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite">One draw of five weights gives one complete function y(x).</p>
@@ -126,8 +126,7 @@
     box.append('b').text(']');
   }
   function axes(){
-    const extent=Math.max(3,...samples.flatMap(s=>s.points.map(p=>Math.abs(p.y))));
-    y.domain([-extent*1.08,extent*1.08]).nice();
+    y.domain([-3,3]);
     grid.call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(''));
     yAxis.call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2~s')));
     curves.selectAll('.sample').attr('d',s=>line(s.points));
@@ -155,7 +154,7 @@
     document.querySelector('#pending').replaceChildren(); ghost.hidden=true;
     equation.classList.remove('ready','over');equation.setAttribute('aria-disabled','true');
     document.querySelector('#count').textContent=`${samples.length} model${samples.length===1?'':'s'} sampled`;
-    hint.textContent=`Weights from α = ${format(sample.alpha)} · vertical axis expands to fit samples`;
+    hint.textContent=`Weights from α = ${format(sample.alpha)} · vertical axis fixed at [−3, 3]`;
     status.textContent='Keep the weights fixed; sweep x from left to right to trace this function.';
     d3.selectAll('.variable').classed('active',true);
     const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
