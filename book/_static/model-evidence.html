@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prior samples and model evidence</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root { --blue:#0076c2; --orange:#ec6842; --panel:#eaeaf2; --axis:#7f8794; --border:#dde3ea; --muted:#5f6b7a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1b1f24; background:#fff; }
+    .shell { padding:12px; }
+    .card { border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0c23400f; }
+    .controls { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:14px; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
+    label { display:block; font-size:.88rem; color:#243140; }
+    input { display:block; width:100%; margin:10px 0 0; accent-color:var(--blue); }
+    output { font-variant-numeric:tabular-nums; }
+    .math { font-family:"STIX Two Math","Cambria Math","Times New Roman",serif; font-size:1.08em; }
+    .chart { padding:10px; }
+    svg { display:block; width:100%; height:auto; max-height:470px; background:var(--panel); border:1px solid var(--border); border-radius:10px; }
+    .axis path,.axis line { stroke:var(--axis); }
+    .axis text,.label { fill:#44505d; font-family:system-ui,sans-serif; font-size:12px; }
+    .grid line { stroke:#fff; } .grid path { display:none; }
+    .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:8px 0 0; font-size:.78rem; color:var(--muted); }
+    .prior-key::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
+    .noise-key { color:#945024; }
+    .evidence { padding:12px 14px; border-top:1px solid #edf1f5; background:#f7f9fb; text-align:center; }
+    .metric { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 22px; font-size:.9rem; }
+    .metric output { font-weight:600; color:#243140; }
+    .hint { margin:8px 0 0; font-size:.78rem; line-height:1.5; color:var(--muted); }
+    @media(max-width:500px) { .shell { padding:8px; } .controls { grid-template-columns:1fr; gap:12px; padding:12px; } .chart { padding:8px; } }
+  </style>
+</head>
+<body>
+<div class="shell"><div class="card">
+  <div class="controls">
+    <label for="alpha">Prior precision <span class="math">α</span> = <output id="alpha-value"></output>
+      <input id="alpha" type="range" min="-3" max="3" step="any" aria-label="Log base ten of prior precision alpha">
+    </label>
+    <label for="beta">Noise precision <span class="math">β</span> = <output id="beta-value"></output>
+      <input id="beta" type="range" min="-2" max="4" step="any" aria-label="Log base ten of noise precision beta">
+    </label>
+  </div>
+  <div class="chart">
+    <svg id="chart" viewBox="0 0 800 460" role="img" aria-labelledby="title desc">
+      <title id="title">Fifty prior functions and five observations</title>
+      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread. Beta changes noise bars around the five observed targets. Darker curves have a higher likelihood. The exact marginal likelihood is reported below.</desc>
+    </svg>
+    <div class="legend"><span class="prior-key">50 prior functions</span><span>× Observations</span><span class="noise-key">↕ Noise: ±2σ</span></div>
+  </div>
+  <div class="evidence">
+    <div class="metric">
+      <span>Marginal likelihood <span class="math">p(t | α, β)</span> = <output id="evidence"></output></span>
+      <span>Log marginal likelihood = <output id="log-evidence"></output></span>
+    </div>
+    <p class="hint">α changes the prior curves; β changes the noise tolerance (σ = β<sup>−1/2</sup>). Darker curves fit the observations better at the current β.</p>
+  </div>
+</div></div>
+<script>
+(() => {
+  const M=5,N=5,SAMPLES=50;
+  // Same Gaussian RBF model as prior-model-sampling.html.
+  const centers=d3.range(M).map(i=>1.5*i), basis=(x,i)=>Math.exp(-.5*(x-centers[i])**2);
+  const offsets=[.2,-.25,.35,-.2,.15];
+  const data=d3.range(N).map(i=>{const x=.6+1.2*i;return{x,y:Math.sin(x)+offsets[i]}});
+  const Phi=data.map(d=>centers.map((_,i)=>basis(d.x,i)));
+  const kernel=Phi.map(a=>Phi.map(b=>d3.sum(a,(v,i)=>v*b[i])));
+  const xs=d3.range(301).map(i=>6*i/300), design=xs.map(x=>centers.map((_,i)=>basis(x,i)));
+  // Fixed standard-normal draws give smooth, reversible slider motion.
+  function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+  const random=rng(812), normal=()=>Math.sqrt(-2*Math.log(Math.max(1e-12,random())))*Math.cos(2*Math.PI*random());
+  const draws=d3.range(SAMPLES).map(()=>{
+    const z=centers.map(normal);
+    return {values:design.map(row=>d3.sum(row,(v,i)=>v*z[i])),targets:Phi.map(row=>d3.sum(row,(v,i)=>v*z[i]))};
+  });
+  const svg=d3.select('#chart'), width=720,height=390;
+  const g=svg.append('g').attr('transform','translate(60,20)');
+  const x=d3.scaleLinear([0,6],[0,width]),y=d3.scaleLinear([-3,3],[height,0]);
+  const grid=g.append('g').attr('class','grid'),yAxis=g.append('g').attr('class','axis');
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).ticks(6));
+  g.append('text').attr('class','label').attr('x',width/2).attr('y',height+37).attr('text-anchor','middle').text('x');
+  g.append('text').attr('class','label').attr('transform','rotate(-90)').attr('x',-height/2).attr('y',-43).attr('text-anchor','middle').text('t, y(x)');
+  g.append('defs').append('clipPath').attr('id','plot-clip').append('rect').attr('width',width).attr('height',height);
+  const marks=g.append('g').attr('clip-path','url(#plot-clip)');
+  const bars=marks.append('g').selectAll('path').data(data).join('path').attr('class','noise').attr('stroke','#ec6842').attr('stroke-width',2).attr('opacity',.65).attr('fill','none');
+  const paths=marks.append('g').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
+  const crosses=marks.append('g').selectAll('path').data(data).join('path').attr('class','observation').attr('d','M-6,-6L6,6M6,-6L-6,6').attr('stroke','#111').attr('stroke-width',2.5).attr('fill','none');
+  // t ~ N(0, C), C = α⁻¹ ΦΦᵀ + β⁻¹ I. Cholesky avoids inversion/determinants.
+  function logEvidence(alpha,beta){
+    const C=kernel.map((r,i)=>r.map((v,j)=>v/alpha+(i===j?1/beta:0)));
+    const L=C.map(()=>Array(N).fill(0));
+    for(let i=0;i<N;i++)for(let j=0;j<=i;j++){
+      const v=C[i][j]-d3.sum(d3.range(j),k=>L[i][k]*L[j][k]);
+      L[i][j]=i===j?Math.sqrt(v):v/L[j][j];
+    }
+    const z=[];
+    for(let i=0;i<N;i++)z[i]=(data[i].y-d3.sum(d3.range(i),j=>L[i][j]*z[j]))/L[i][i];
+    return -.5*(N*Math.log(2*Math.PI)+2*d3.sum(L,(r,i)=>Math.log(r[i]))+d3.sum(z,v=>v*v));
+  }
+  const alphaInput=document.querySelector('#alpha'),betaInput=document.querySelector('#beta');
+  function draw(){
+    const alpha=10**Number(alphaInput.value),beta=10**Number(betaInput.value),sd=1/Math.sqrt(alpha),noise=2/Math.sqrt(beta);
+    document.querySelector('#alpha-value').textContent=d3.format('.3~g')(alpha);
+    document.querySelector('#beta-value').textContent=d3.format('.3~g')(beta);
+    // Keep a common scale near the observations; expand only for larger prior draws/noise bars.
+    const extent=Math.max(2,...data.map(d=>Math.abs(d.y)+noise),...draws.map(d=>d3.max(d.values,v=>Math.abs(v)*sd)));
+    y.domain([-extent*1.05,extent*1.05]).nice();
+    grid.call(d3.axisLeft(y).ticks(6).tickSize(-width).tickFormat(''));
+    yAxis.call(d3.axisLeft(y).ticks(6));
+    paths.attr('d',d=>d3.line().x((_,i)=>x(xs[i])).y(v=>y(v*sd))(d.values))
+      .attr('opacity',d=>.07+.18*Math.exp(-.5*beta*d3.sum(data,(p,i)=>(p.y-d.targets[i]*sd)**2)));
+    bars.attr('d',d=>{const xx=x(d.x),lo=y(d.y-noise),hi=y(d.y+noise);return`M${xx},${lo}V${hi}M${xx-5},${lo}H${xx+5}M${xx-5},${hi}H${xx+5}`});
+    crosses.attr('transform',d=>`translate(${x(d.x)},${y(d.y)})`);
+    const log=logEvidence(alpha,beta);
+    document.querySelector('#log-evidence').textContent=log.toFixed(2);
+    // Scientific notation preserves information when the evidence is smaller than 0.01.
+    const exponent=Math.floor(log/Math.LN10),mantissa=Math.exp(log-exponent*Math.LN10);
+    document.querySelector('#evidence').textContent=`${mantissa.toFixed(2)} × 10`;
+    d3.select('#evidence').append('sup').text(exponent);
+  }
+  alphaInput.value=Math.log10(25);betaInput.value=Math.log10(.2);
+  alphaInput.addEventListener('input',draw);betaInput.addEventListener('input',draw);draw();
+})();
+</script>
+</body>
+</html>
