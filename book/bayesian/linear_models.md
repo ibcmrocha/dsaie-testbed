@@ -277,6 +277,15 @@ $$(postvar)
 
 where $\Phi_{ij} = \phi_j(x_i)$ already appeared {doc}`in the MLE treatment<../frequentist/linear_models>`.
 
+We can now draw weights from either the prior $p(\mathbf{w})$ or the posterior
+$p(\mathbf{w}\vert\mathbf{t})$. The five crosses below are fixed observations
+at equally spaced inputs. Both bags use the same radial basis functions as
+before; the posterior also accounts for these observations. Change $\alpha$
+and the noise precision $\beta$ to explore how they affect new draws.
+Dashed curves come from the prior and solid curves from the posterior.
+
+<iframe src="../_static/prior-model-sampling.html?posterior=1" style="width: 100%; height: 1000px; border: 0;" loading="lazy" title="Draw radial basis function models from the prior and posterior"></iframe>
+
 ## Making new predictions
 
 We are almost done! We now have a more informed distribution $p(\mathbf{w}\vert\mathbf{t})$. All that remains now is to finally make new predictions.
