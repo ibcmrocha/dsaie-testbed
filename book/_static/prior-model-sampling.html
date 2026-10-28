@@ -25,11 +25,11 @@
     .control { font-size:.85rem; text-align:left; }
     input { width:100%; accent-color:var(--blue); }
     .hint { color:var(--muted); font-size:.78rem; line-height:1.5; }
-    .plot { min-width:0; }
+    .plot { min-width:0; container-type:inline-size; }
     .toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.78rem; color:var(--muted); }
     #reset { border:1px solid #cfd7e3; border-radius:999px; padding:7px 12px; background:#fff; color:#243140; font-size:.86rem; }
     #reset:hover { background:#eef5fb; border-color:#7cb3df; }
-    #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:5px; margin:13px 0 7px; padding:32px 4px 14px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:21px; white-space:nowrap; min-height:86px; }
+    #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:5px; margin:13px 0 7px; padding:32px 4px 14px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; min-height:86px; }
     #equation.ready { cursor:pointer; border-color:var(--blue); }
     #equation.over { background:#e3f2fc; box-shadow:0 0 0 3px #0076c225; }
     .weight { position:relative; }
@@ -51,10 +51,10 @@
       .prior { display:grid; grid-template-columns:120px minmax(0,1fr); align-items:center; gap:12px; }
       #bag { width:105px; } .distribution { margin:0; font-size:16px; }
       .hint { margin:5px 0; } #pending { margin:4px 0; min-height:36px; }
-      #equation { font-size:19px; gap:4px; margin-top:8px; }
+      #equation { gap:3px; margin-top:8px; }
       h2 { font-size:.92rem; padding:11px; }
     }
-    @media(max-width:360px) { #equation { font-size:16px; gap:3px; } .value { font-size:10px; } }
+    @media(max-width:360px) { #equation { gap:2px; } .value { font-size:10px; } }
     @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
   </style>
 </head>
@@ -76,7 +76,6 @@
       <div>
         <label class="control" for="alpha">Prior precision <span class="math">α</span> = <output id="alpha-value"></output></label>
         <input id="alpha" type="range" min="-3" max="5" step="any" value="0" aria-label="Log base ten of prior precision alpha">
-        <p class="hint math">wᵢ ∼ N(0, α⁻¹), independently</p>
         <p class="hint">Drag from the bag to the equation.<br>Or click the bag, then the equation.</p>
         <div id="pending"></div>
       </div>
@@ -85,14 +84,14 @@
       <div class="toolbar"><span id="count">0 models sampled</span><button id="reset" type="button">Reset samples</button></div>
       <div id="equation" class="math" role="button" tabindex="0" aria-label="Insert drawn weights and plot the model" aria-disabled="true">
         <span class="variable">y</span><span>(<span class="variable">x</span>) =</span>
-        <span><span class="weight">w₁</span>φ₁</span><span>+</span>
-        <span><span class="weight">w₂</span>φ₂</span><span>+</span>
-        <span><span class="weight">w₃</span>φ₃</span><span>+</span>
-        <span><span class="weight">w₄</span>φ₄</span><span>+</span>
-        <span><span class="weight">w₅</span>φ₅</span>
+        <span><span class="weight">w₁</span>ϕ₁(<span class="variable">x</span>)</span><span>+</span>
+        <span><span class="weight">w₂</span>ϕ₂(<span class="variable">x</span>)</span><span>+</span>
+        <span><span class="weight">w₃</span>ϕ₃(<span class="variable">x</span>)</span><span>+</span>
+        <span><span class="weight">w₄</span>ϕ₄(<span class="variable">x</span>)</span><span>+</span>
+        <span><span class="weight">w₅</span>ϕ₅(<span class="variable">x</span>)</span>
       </div>
       <p id="drop-hint">Drop the weight vector here ↑</p>
-      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is a weighted sum of five equally spaced Gaussian radial basis functions. The vertical axis adjusts to show all sampled curves.</desc></svg>
+      <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Functions sampled from the prior</title><desc id="chart-desc">Each curve is a weighted sum of five equally spaced Gaussian radial basis functions.</desc></svg>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite">One draw of five weights gives one complete function y(x).</p>
@@ -133,7 +132,7 @@
     const extent=samples.length?Math.max(1e-6,...samples.map(s=>d3.max(s.points,p=>Math.abs(p.y)))):1;
     y.domain([-1.08*extent,1.08*extent]).nice();
     grid.call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(''));
-    yAxis.call(d3.axisLeft(y).ticks(5).tickFormat(d3.format('.2~s')));
+    yAxis.call(d3.axisLeft(y).ticks(5));
     curves.selectAll('.sample').attr('d',s=>line(s.points));
   }
   function drawWeights(){
@@ -159,7 +158,7 @@
     document.querySelector('#pending').replaceChildren(); ghost.hidden=true;
     equation.classList.remove('ready','over');equation.setAttribute('aria-disabled','true');
     document.querySelector('#count').textContent=`${samples.length} model${samples.length===1?'':'s'} sampled`;
-    hint.textContent=`Weights from α = ${format(sample.alpha)} · vertical axis adjusts to fit samples`;
+    hint.textContent=`Weights from α = ${format(sample.alpha)}`;
     status.textContent='Keep the weights fixed; sweep x from left to right to trace this function.';
     d3.selectAll('.variable').classed('active',true);
     const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
@@ -193,6 +192,7 @@
     document.querySelector('#count').textContent='0 models sampled';hint.textContent='Drop the weight vector here ↑';
     status.textContent='Plot cleared. Draw new weights from the bag to start again.';
   });
+  alphaInput.value=0; // Logarithmic slider: 10⁰ gives the default α = 1.
   axes();updateAlpha();colorWeights(true);
 })();
 </script>
