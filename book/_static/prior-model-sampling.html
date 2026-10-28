@@ -21,7 +21,7 @@
     .bag svg { display:block; width:100%; }
     .bag:hover .sack { fill:#e6d8c4; }
     .bags { display:flex; justify-content:center; }
-    .posterior-mode .bag { width:155px; max-width:100%; }
+    .posterior-mode .bag { width:130px; max-width:100%; }
     .posterior-bag { margin-top:10px; }
     .legend { display:flex; justify-content:center; gap:18px; margin:6px 0 0; font-size:.78rem; color:var(--muted); }
     .legend span::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
@@ -32,6 +32,7 @@
     .control { font-size:.85rem; text-align:left; }
     input { width:100%; accent-color:var(--blue); }
     .hint { color:var(--muted); font-size:.78rem; line-height:1.5; }
+    .instructions { text-align:center; margin:8px 0 0; }
     .plot { min-width:0; container-type:inline-size; }
     .toolbar { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:.78rem; color:var(--muted); }
     #reset { border:1px solid #cfd7e3; border-radius:999px; padding:7px 12px; background:#fff; color:#243140; font-size:.86rem; }
@@ -61,7 +62,7 @@
       #equation { gap:3px; margin-top:8px; }
       h2 { font-size:.92rem; padding:11px; }
     }
-    @media(max-width:600px) { .posterior-mode .prior { grid-template-columns:130px minmax(0,1fr); align-items:start; } .posterior-mode .bag { width:130px; } }
+    @media(max-width:600px) { .posterior-mode .prior { grid-template-columns:130px minmax(0,1fr); align-items:start; } .posterior-mode .bag { width:115px; } }
     .legend .data-key::before { display:none; }
     @media(max-width:360px) { #equation { gap:2px; } .value { font-size:10px; } }
     @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
@@ -78,7 +79,7 @@
           <svg viewBox="0 0 160 180" aria-hidden="true">
             <path class="sack" d="M52 18 Q80 30 108 18 L98 52 C115 70 146 110 137 145 Q132 169 80 169 Q28 169 23 145 C14 110 45 70 62 52 Z" fill="#eee3d3" stroke="#9b876d" stroke-width="2.5"/>
             <path d="M61 52 Q80 57 99 52 M59 58 Q80 63 101 58 M65 27 L72 48 M94 28 L87 48" fill="none" stroke="#9b876d" stroke-width="3" stroke-linecap="round"/>
-            <text x="80" y="124" text-anchor="middle" font-family="Georgia,serif" font-size="32" fill="#5e5141">w</text>
+            <text x="80" y="124" text-anchor="middle" font-family="Georgia,serif" font-size="22" fill="#5e5141">Prior</text>
           </svg>
         </button>
         <p class="distribution math">p(<b>w</b>)</p>
@@ -123,7 +124,8 @@
     const second=document.querySelector('.bags > div').cloneNode(true), button=second.querySelector('button');
     button.id='posterior-bag'; button.dataset.source='posterior';
     button.setAttribute('aria-label','Draw five weights from the posterior. Drag to the equation, or click then activate the equation.');
-    second.querySelector('text').textContent='w|t';
+    second.querySelector('text').textContent='Posterior';
+    second.querySelector('text').setAttribute('font-size','20');
     second.querySelector('.distribution').innerHTML='p(<b>w</b> | <b>t</b>)';
     second.classList.add('posterior-bag');
     document.querySelector('.settings .hint').after(second);
@@ -133,6 +135,9 @@
     document.querySelector('#chart-desc').textContent='Five observed targets appear as crosses. Prior samples are dashed; posterior samples are solid. Each curve uses five Gaussian radial basis functions.';
     document.querySelector('.settings .hint').innerHTML='Drag from either bag to the equation.<br>Or click a bag, then the equation.';
   }
+  const instructions=document.querySelector('.settings .hint');
+  instructions.classList.add('instructions');
+  document.querySelector('#equation').before(instructions);
   const colors=['#0076c2','#ec6842','#6f1d77','#14836b','#a56b14'];
   const weights=d3.selectAll('.weight'), equation=document.querySelector('#equation');
   const alphaInput=document.querySelector('#alpha'), betaInput=document.querySelector('#beta'), ghost=document.querySelector('#ghost');
