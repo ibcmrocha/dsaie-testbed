@@ -43,7 +43,7 @@
   <div class="chart">
     <svg id="chart" viewBox="0 0 800 460" role="img" aria-labelledby="title desc">
       <title id="title">Fifty prior functions and five observations</title>
-      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The exact log marginal likelihood is reported below.</desc>
+      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The exact log marginal likelihood is reported below.</desc>
     </svg>
     <div class="legend"><span class="prior-key">50 prior functions</span><span>× Observations</span></div>
   </div>
@@ -66,13 +66,14 @@
   const xs=d3.range(301).map(i=>6*i/300), design=xs.map(x=>centers.map((_,i)=>basis(x,i)));
   const meanValues=design.map(row=>d3.sum(row)/Math.sqrt(M));
   const meanTargets=Phi.map(row=>d3.sum(row)/Math.sqrt(M));
-  // Fixed standard-normal draws give smooth, reversible slider motion.
-  function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-  const random=rng(812), normal=()=>Math.sqrt(-2*Math.log(Math.max(1e-12,random())))*Math.cos(2*Math.PI*random());
-  const draws=d3.range(SAMPLES).map(()=>{
-    const z=centers.map(normal);
-    return {values:design.map(row=>d3.sum(row,(v,i)=>v*z[i])),targets:Phi.map(row=>d3.sum(row,(v,i)=>v*z[i]))};
-  });
+  // Keep one standard-normal batch during a gesture; replace it on release.
+  function sampleBatch(){
+    return d3.range(SAMPLES).map(()=>{
+      const z=centers.map(()=>d3.randomNormal()());
+      return {values:design.map(row=>d3.sum(row,(v,i)=>v*z[i])),targets:Phi.map(row=>d3.sum(row,(v,i)=>v*z[i]))};
+    });
+  }
+  let draws=sampleBatch(),revealTimer=null;
   const svg=d3.select('#chart'), width=720,height=390;
   const g=svg.append('g').attr('transform','translate(60,20)');
   const x=d3.scaleLinear([0,6],[0,width]),y=d3.scaleLinear([-3,3],[height,0]);
@@ -82,7 +83,8 @@
   g.append('text').attr('class','label').attr('transform','rotate(-90)').attr('x',-height/2).attr('y',-43).attr('text-anchor','middle').text('t, y(x)');
   g.append('defs').append('clipPath').attr('id','plot-clip').append('rect').attr('width',width).attr('height',height);
   const marks=g.append('g').attr('clip-path','url(#plot-clip)');
-  const paths=marks.append('g').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
+  const reveal=g.select('defs').append('clipPath').attr('id','sample-reveal').append('rect').attr('width',width).attr('height',height);
+  const paths=marks.append('g').attr('clip-path','url(#sample-reveal)').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
   const crosses=marks.append('g').selectAll('path').data(data).join('path').attr('class','observation').attr('d','M-6,-6L6,6M6,-6L-6,6').attr('stroke','#111').attr('stroke-width',2.5).attr('fill','none');
   // t ~ N(Φm₀, C), C = α⁻¹ ΦΦᵀ + β⁻¹ I. Cholesky avoids inversion/determinants.
   function logEvidence(alpha,mean){
@@ -97,7 +99,22 @@
     return -.5*(N*Math.log(2*Math.PI)+2*d3.sum(L,(r,i)=>Math.log(r[i]))+d3.sum(z,v=>v*v));
   }
   const alphaInput=document.querySelector('#alpha'),meanInput=document.querySelector('#mean');
+  function finishReveal(){
+    if(revealTimer){revealTimer.stop();revealTimer=null;}
+    reveal.attr('width',width);
+  }
+  function refreshSamples(){
+    draws=sampleBatch();paths.data(draws);draw();
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    reveal.attr('width',0);
+    revealTimer=d3.timer(elapsed=>{
+      const progress=Math.min(1,elapsed/1500);
+      reveal.attr('width',width*progress);
+      if(progress===1)finishReveal();
+    });
+  }
   function draw(){
+    finishReveal();
     const alpha=10**Number(alphaInput.value),mean=Number(meanInput.value),sd=1/Math.sqrt(alpha);
     document.querySelector('#alpha-value').textContent=d3.format('.3~g')(alpha);
     document.querySelector('#mean-value').textContent=d3.format('.3~g')(mean);
@@ -112,7 +129,33 @@
 
   }
   alphaInput.value=Math.log10(25);meanInput.value=2;
-  alphaInput.addEventListener('input',draw);meanInput.addEventListener('input',draw);draw();
+  let activeSlider=null,pointerId=null,needsRefresh=false;
+  const adjustmentKeys=new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown']);
+  function commitGesture(){
+    activeSlider=null;pointerId=null;
+    if(needsRefresh){needsRefresh=false;refreshSamples();}
+  }
+  for(const slider of [alphaInput,meanInput]){
+    slider.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;
+      activeSlider=slider;pointerId=event.pointerId;needsRefresh=true;
+      finishReveal();
+    });
+    slider.addEventListener('input',()=>{needsRefresh=true;draw();});
+    // Native change also covers assistive technology and non-pointer controls.
+    slider.addEventListener('change',()=>{if(!activeSlider)commitGesture();});
+    slider.addEventListener('keydown',event=>{
+      if(adjustmentKeys.has(event.key)){activeSlider=slider;finishReveal();}
+    });
+    slider.addEventListener('keyup',event=>{
+      if(adjustmentKeys.has(event.key)&&activeSlider===slider)commitGesture();
+    });
+    slider.addEventListener('blur',()=>{if(activeSlider===slider)commitGesture();});
+  }
+  for(const type of ['pointerup','pointercancel'])window.addEventListener(type,event=>{
+    if(event.pointerId===pointerId)commitGesture();
+  });
+  draw();
 })();
 </script>
 </body>
