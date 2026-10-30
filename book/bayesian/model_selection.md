@@ -95,6 +95,8 @@ The example below demonstrates this learning process for a dataset of 10 points 
 
 We can see how the initial values $\alpha=\beta=1$ sacrifice too much flexibility for parsimony. After 20 iterations, the optimizer finds that the model with $\alpha=4.4$ and $\beta=175.9$ gives the highest value for the log marginal likelihood. Crucially, we could get to these values without sacrificing any of our data points to serve as validation data.
 
+<iframe src="../_static/model-evidence.html" style="width: 100%; height: 720px; border: 0;" loading="lazy" title="Explore marginal likelihood with fifty prior RBF models and five observations"></iframe>
+
 ```{admonition} Exam questions    
 :class: danger    
 You can expect conceptual questions about frequentist versus Bayesian model selection during the exam. The link between model selection here and the one you have seen in MUDE is important, as well as relating those to the process of obtaining Bayesian solutions for $\mathbf{w}$.

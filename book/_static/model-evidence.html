@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prior samples and model evidence</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <style>
+    :root { --blue:#0076c2; --orange:#ec6842; --panel:#eaeaf2; --axis:#7f8794; --border:#dde3ea; --muted:#5f6b7a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1b1f24; background:#fff; }
+    .shell { padding:12px; }
+    .card { border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0c23400f; }
+    .controls { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:14px; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
+    label { display:block; font-size:.88rem; color:#243140; }
+    input { display:block; width:100%; margin:10px 0 0; accent-color:var(--blue); }
+    output { font-variant-numeric:tabular-nums; }
+    .math { font-family:"STIX Two Math","Cambria Math","Times New Roman",serif; font-size:1.08em; }
+    .chart { padding:10px; }
+    svg { display:block; width:100%; height:auto; max-height:470px; background:var(--panel); border:1px solid var(--border); border-radius:10px; }
+    .axis path,.axis line { stroke:var(--axis); }
+    .axis text,.label { fill:#44505d; font-family:system-ui,sans-serif; font-size:12px; }
+    .grid line { stroke:#fff; } .grid path { display:none; }
+    .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:8px 0 0; font-size:.78rem; color:var(--muted); }
+    .prior-key::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
+    .evidence { padding:12px 14px; border-top:1px solid #edf1f5; background:#f7f9fb; text-align:center; }
+    .metric { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 22px; font-size:.9rem; }
+    .metric output { font-weight:600; color:#243140; }
+    @media(max-width:500px) { .shell { padding:8px; } .controls { grid-template-columns:1fr; gap:12px; padding:12px; } .chart { padding:8px; } }
+  </style>
+</head>
+<body>
+<div class="shell"><div class="card">
+  <div class="controls">
+    <label for="alpha">Prior precision <span class="math">α</span> = <output id="alpha-value"></output>
+      <input id="alpha" type="range" min="-3" max="3" step="any" aria-label="Log base ten of prior precision alpha">
+    </label>
+    <label for="mean">Prior mean scale <span class="math">μ</span> = <output id="mean-value"></output>
+      <input id="mean" type="range" min="-4" max="4" step="any" aria-label="Prior mean scale mu">
+    </label>
+  </div>
+  <div class="chart">
+    <svg id="chart" viewBox="0 0 800 460" role="img" aria-labelledby="title desc">
+      <title id="title">Fifty prior functions and five observations</title>
+      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The exact log marginal likelihood is reported below.</desc>
+    </svg>
+    <div class="legend"><span class="prior-key">50 prior functions</span><span>× Observations</span></div>
+  </div>
+  <div class="evidence">
+    <div class="metric">
+      <span>Log marginal likelihood = <output id="log-evidence"></output></span>
+    </div>
+  </div>
+</div></div>
+<script>
+(() => {
+  const M=5,N=5,SAMPLES=50,BETA=10;
+  // Same Gaussian RBF model as prior-model-sampling.html.
+  const centers=d3.range(M).map(i=>1.5*i), basis=(x,i)=>Math.exp(-.5*(x-centers[i])**2);
+  const offsets=[.2,-.25,.35,-.2,.15];
+  const data=d3.range(N).map(i=>{const x=.6+1.2*i;return{x,y:Math.sin(x)+offsets[i]}});
+  const Phi=data.map(d=>centers.map((_,i)=>basis(d.x,i)));
+  const kernel=Phi.map(a=>Phi.map(b=>d3.sum(a,(v,i)=>v*b[i])));
+  const xs=d3.range(301).map(i=>6*i/300), design=xs.map(x=>centers.map((_,i)=>basis(x,i)));
+  const meanValues=design.map(row=>d3.sum(row)/Math.sqrt(M));
+  const meanTargets=Phi.map(row=>d3.sum(row)/Math.sqrt(M));
+  // Keep one standard-normal batch during a gesture; replace it on release.
+  function sampleBatch(){
+    return d3.range(SAMPLES).map(()=>{
+      const z=centers.map(()=>d3.randomNormal()());
+      return {values:design.map(row=>d3.sum(row,(v,i)=>v*z[i])),targets:Phi.map(row=>d3.sum(row,(v,i)=>v*z[i]))};
+    });
+  }
+  let draws=sampleBatch(),revealTimer=null;
+  const svg=d3.select('#chart'), width=720,height=390;
+  const g=svg.append('g').attr('transform','translate(60,20)');
+  const x=d3.scaleLinear([0,6],[0,width]),y=d3.scaleLinear([-3,3],[height,0]);
+  const grid=g.append('g').attr('class','grid'),yAxis=g.append('g').attr('class','axis');
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).ticks(6));
+  g.append('text').attr('class','label').attr('x',width/2).attr('y',height+37).attr('text-anchor','middle').text('x');
+  g.append('text').attr('class','label').attr('transform','rotate(-90)').attr('x',-height/2).attr('y',-43).attr('text-anchor','middle').text('t, y(x)');
+  g.append('defs').append('clipPath').attr('id','plot-clip').append('rect').attr('width',width).attr('height',height);
+  const marks=g.append('g').attr('clip-path','url(#plot-clip)');
+  const reveal=g.select('defs').append('clipPath').attr('id','sample-reveal').append('rect').attr('width',width).attr('height',height);
+  const paths=marks.append('g').attr('clip-path','url(#sample-reveal)').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
+  const crosses=marks.append('g').selectAll('path').data(data).join('path').attr('class','observation').attr('d','M-6,-6L6,6M6,-6L-6,6').attr('stroke','#111').attr('stroke-width',2.5).attr('fill','none');
+  // t ~ N(Φm₀, C), C = α⁻¹ ΦΦᵀ + β⁻¹ I. Cholesky avoids inversion/determinants.
+  function logEvidence(alpha,mean){
+    const C=kernel.map((r,i)=>r.map((v,j)=>v/alpha+(i===j?1/BETA:0)));
+    const L=C.map(()=>Array(N).fill(0));
+    for(let i=0;i<N;i++)for(let j=0;j<=i;j++){
+      const v=C[i][j]-d3.sum(d3.range(j),k=>L[i][k]*L[j][k]);
+      L[i][j]=i===j?Math.sqrt(v):v/L[j][j];
+    }
+    const z=[];
+    for(let i=0;i<N;i++)z[i]=(data[i].y-mean*meanTargets[i]-d3.sum(d3.range(i),j=>L[i][j]*z[j]))/L[i][i];
+    return -.5*(N*Math.log(2*Math.PI)+2*d3.sum(L,(r,i)=>Math.log(r[i]))+d3.sum(z,v=>v*v));
+  }
+  const alphaInput=document.querySelector('#alpha'),meanInput=document.querySelector('#mean');
+  function finishReveal(){
+    if(revealTimer){revealTimer.stop();revealTimer=null;}
+    reveal.attr('width',width);
+  }
+  function refreshSamples(){
+    draws=sampleBatch();paths.data(draws);draw();
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    reveal.attr('width',0);
+    revealTimer=d3.timer(elapsed=>{
+      const progress=Math.min(1,elapsed/1500);
+      reveal.attr('width',width*progress);
+      if(progress===1)finishReveal();
+    });
+  }
+  function draw(){
+    finishReveal();
+    const alpha=10**Number(alphaInput.value),mean=Number(meanInput.value),sd=1/Math.sqrt(alpha);
+    document.querySelector('#alpha-value').textContent=d3.format('.3~g')(alpha);
+    document.querySelector('#mean-value').textContent=d3.format('.3~g')(mean);
+    y.domain([-3,3]);
+    grid.call(d3.axisLeft(y).ticks(6).tickSize(-width).tickFormat(''));
+    yAxis.call(d3.axisLeft(y).ticks(6));
+    paths.attr('d',d=>d3.line().x((_,i)=>x(xs[i])).y((v,i)=>y(v*sd+mean*meanValues[i]))(d.values))
+      .attr('opacity',d=>.16+.18*Math.exp(-.5*BETA*d3.sum(data,(p,i)=>(p.y-d.targets[i]*sd-mean*meanTargets[i])**2)));
+    crosses.attr('transform',d=>`translate(${x(d.x)},${y(d.y)})`);
+    const log=logEvidence(alpha,mean);
+    document.querySelector('#log-evidence').textContent=log.toFixed(2);
+
+  }
+  alphaInput.value=Math.log10(25);meanInput.value=2;
+  let activeSlider=null,pointerId=null,needsRefresh=false;
+  const adjustmentKeys=new Set(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown']);
+  function commitGesture(){
+    activeSlider=null;pointerId=null;
+    if(needsRefresh){needsRefresh=false;refreshSamples();}
+  }
+  for(const slider of [alphaInput,meanInput]){
+    slider.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;
+      activeSlider=slider;pointerId=event.pointerId;needsRefresh=true;
+      finishReveal();
+    });
+    slider.addEventListener('input',()=>{needsRefresh=true;draw();});
+    // Native change also covers assistive technology and non-pointer controls.
+    slider.addEventListener('change',()=>{if(!activeSlider)commitGesture();});
+    slider.addEventListener('keydown',event=>{
+      if(adjustmentKeys.has(event.key)){activeSlider=slider;finishReveal();}
+    });
+    slider.addEventListener('keyup',event=>{
+      if(adjustmentKeys.has(event.key)&&activeSlider===slider)commitGesture();
+    });
+    slider.addEventListener('blur',()=>{if(activeSlider===slider)commitGesture();});
+  }
+  for(const type of ['pointerup','pointercancel'])window.addEventListener(type,event=>{
+    if(event.pointerId===pointerId)commitGesture();
+  });
+  draw();
+})();
+</script>
+</body>
+</html>
