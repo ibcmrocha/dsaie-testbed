@@ -221,6 +221,8 @@ where we see that $z$ captures the intrinsic one-dimensional nature of the data 
 Fitting the *swiss roll* dataset with a VAE: generating new samples
 ```
 
+<iframe src="../_static/vae-latent-explorer.html" style="width: 100%; height: 1040px; border: 0;" loading="lazy" title="Explore a real MNIST VAE through its two-dimensional latent space and replay its training"></iframe>
+
 ```{admonition} Exam questions    
 :class: danger    
 You might find exam questions about variational autoencoders. You will not be asked to reproduce the stochastic lower-bound formulation above, although you should be familiar with the approximations we make and how we can still arrive at a tractable model. The conceptual interpretation of the two terms that arise in the final loss function are important. The similarities and differences between VAEs and PPCA are also crucial. You should also be aware of when the usage of a VAE model is warranted (instead of e.g. PPCA or Gaussian mixtures).
