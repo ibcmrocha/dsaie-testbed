@@ -23,6 +23,7 @@
     .grid line { stroke:#fff; } .grid path { display:none; }
     .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:8px 0 0; font-size:.78rem; color:var(--muted); }
     .prior-key::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
+    .posterior-key::before { content:""; display:inline-block; width:22px; height:10px; background:#ec68421f; border-bottom:2px solid var(--orange); margin-right:6px; vertical-align:middle; }
     .evidence { padding:12px 14px; border-top:1px solid #edf1f5; background:#f7f9fb; text-align:center; }
     .metric { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 22px; font-size:.9rem; }
     .metric output { font-weight:600; color:#243140; }
@@ -41,10 +42,10 @@
   </div>
   <div class="chart">
     <svg id="chart" viewBox="0 0 800 460" role="img" aria-labelledby="title desc">
-      <title id="title">Fifty prior functions and five observations</title>
-      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The exact log marginal likelihood is reported below.</desc>
+      <title id="title">Fifty prior functions, posterior distribution, and five observations</title>
+      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The orange posterior mean and plus or minus two standard deviation band describe the latent function, without observation noise. They remain fixed while a slider is held, then update and reveal with the fresh prior samples on release. The exact log marginal likelihood is reported below.</desc>
     </svg>
-    <div class="legend"><span class="prior-key">50 prior functions</span><span>× Observations</span></div>
+    <div class="legend"><span class="prior-key">50 prior functions</span><span class="posterior-key">Posterior mean ±2σ</span><span>× Observations</span></div>
   </div>
   <div class="evidence">
     <div class="metric">
@@ -82,19 +83,52 @@
   g.append('defs').append('clipPath').attr('id','plot-clip').append('rect').attr('width',width).attr('height',height);
   const marks=g.append('g').attr('clip-path','url(#plot-clip)');
   const reveal=g.select('defs').append('clipPath').attr('id','sample-reveal').append('rect').attr('width',width).attr('height',height);
+  const posteriorLayer=marks.append('g').attr('clip-path','url(#sample-reveal)');
+  const posteriorBand=posteriorLayer.append('path').attr('class','posterior-band').attr('fill','#ec6842').attr('opacity',.12);
+  const posteriorMean=posteriorLayer.append('path').attr('class','posterior-mean').attr('fill','none').attr('stroke','#ec6842').attr('stroke-width',2.5).attr('opacity',.9);
   const paths=marks.append('g').attr('clip-path','url(#sample-reveal)').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
   const crosses=marks.append('g').selectAll('path').data(data).join('path').attr('class','observation').attr('d','M-6,-6L6,6M6,-6L-6,6').attr('stroke','#111').attr('stroke-width',2.5).attr('fill','none');
-  // t ~ N(Φm₀, C), C = α⁻¹ ΦΦᵀ + β⁻¹ I. Cholesky avoids inversion/determinants.
-  function logEvidence(alpha,mean){
-    const C=kernel.map((r,i)=>r.map((v,j)=>v/alpha+(i===j?1/BETA:0)));
-    const L=C.map(()=>Array(N).fill(0));
-    for(let i=0;i<N;i++)for(let j=0;j<=i;j++){
-      const v=C[i][j]-d3.sum(d3.range(j),k=>L[i][k]*L[j][k]);
+  function cholesky(A){
+    const L=A.map(()=>Array(A.length).fill(0));
+    for(let i=0;i<A.length;i++)for(let j=0;j<=i;j++){
+      const v=A[i][j]-d3.sum(d3.range(j),k=>L[i][k]*L[j][k]);
       L[i][j]=i===j?Math.sqrt(v):v/L[j][j];
     }
+    return L;
+  }
+  function solveLower(L,b){
     const z=[];
-    for(let i=0;i<N;i++)z[i]=(data[i].y-mean*meanTargets[i]-d3.sum(d3.range(i),j=>L[i][j]*z[j]))/L[i][i];
+    for(let i=0;i<L.length;i++)z[i]=(b[i]-d3.sum(d3.range(i),j=>L[i][j]*z[j]))/L[i][i];
+    return z;
+  }
+  function solveUpper(L,b){
+    const z=Array(L.length);
+    for(let i=L.length-1;i>=0;i--)z[i]=(b[i]-d3.sum(d3.range(i+1,L.length),j=>L[j][i]*z[j]))/L[i][i];
+    return z;
+  }
+  // t ~ N(Φm₀, C), C = α⁻¹ ΦΦᵀ + β⁻¹ I. Avoid inversion/determinants.
+  function logEvidence(alpha,mean){
+    const C=kernel.map((r,i)=>r.map((v,j)=>v/alpha+(i===j?1/BETA:0))),L=cholesky(C);
+    const z=solveLower(L,data.map((d,i)=>d.y-mean*meanTargets[i]));
     return -.5*(N*Math.log(2*Math.PI)+2*d3.sum(L,(r,i)=>Math.log(r[i]))+d3.sum(z,v=>v*v));
+  }
+  // Posterior over the latent function: no additional observation-noise variance.
+  function posterior(alpha,mean){
+    const A=centers.map((_,i)=>centers.map((_,j)=>(i===j?alpha:0)+BETA*d3.sum(Phi,row=>row[i]*row[j])));
+    const L=cholesky(A),residual=data.map((d,i)=>d.y-mean*meanTargets[i]);
+    const rhs=centers.map((_,i)=>BETA*d3.sum(Phi,(row,n)=>row[i]*residual[n]));
+    const correction=solveUpper(L,solveLower(L,rhs));
+    const weights=correction.map(v=>v+mean/Math.sqrt(M));
+    return design.map((row,i)=>{
+      const mu=d3.sum(row,(v,j)=>v*weights[j]),projection=solveLower(L,row);
+      const sigma=Math.sqrt(d3.sum(projection,v=>v*v));
+      return {x:xs[i],mean:mu,lo:mu-2*sigma,hi:mu+2*sigma};
+    });
+  }
+  function updatePosterior(){
+    const points=posterior(10**Number(alphaInput.value),Number(meanInput.value));
+    posteriorBand.datum(points).attr('d',d3.area().x(d=>x(d.x)).y0(d=>y(d.lo)).y1(d=>y(d.hi)));
+    posteriorMean.datum(points).attr('d',d3.line().x(d=>x(d.x)).y(d=>y(d.mean)));
   }
   const alphaInput=document.querySelector('#alpha'),meanInput=document.querySelector('#mean');
   function finishReveal(){
@@ -102,7 +136,7 @@
     reveal.attr('width',width);
   }
   function refreshSamples(){
-    draws=sampleBatch();paths.data(draws);draw();
+    draws=sampleBatch();paths.data(draws);draw();updatePosterior();
     if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     reveal.attr('width',0);
     revealTimer=d3.timer(elapsed=>{
@@ -120,7 +154,7 @@
     grid.call(d3.axisLeft(y).ticks(6).tickSize(-width).tickFormat(''));
     yAxis.call(d3.axisLeft(y).ticks(6));
     paths.attr('d',d=>d3.line().x((_,i)=>x(xs[i])).y((v,i)=>y(v*sd+mean*meanValues[i]))(d.values))
-      .attr('opacity',d=>.16+.18*Math.exp(-.5*BETA*d3.sum(data,(p,i)=>(p.y-d.targets[i]*sd-mean*meanTargets[i])**2)));
+      .attr('opacity',d=>.22+.18*Math.exp(-.5*BETA*d3.sum(data,(p,i)=>(p.y-d.targets[i]*sd-mean*meanTargets[i])**2)));
     crosses.attr('transform',d=>`translate(${x(d.x)},${y(d.y)})`);
     const log=logEvidence(alpha,mean);
     document.querySelector('#log-evidence').textContent=log.toFixed(2);
@@ -153,7 +187,7 @@
   for(const type of ['pointerup','pointercancel'])window.addEventListener(type,event=>{
     if(event.pointerId===pointerId)commitGesture();
   });
-  draw();
+  draw();updatePosterior();
 })();
 </script>
 </body>
