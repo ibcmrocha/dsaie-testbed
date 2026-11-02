@@ -31,8 +31,8 @@ held-out images (base64 uint8), and per-stage encoder outputs. No optimizer,
 training set, tensor framework, or inference service is shipped to students.
 
 The training button **replays saved checkpoints**; it does not train online.
-The stage slider, pause button and trained-model shortcut all select actual
-saved weights. Dragging any latent location computes a fresh forward pass,
+The stage slider and pause button select actual saved weights. The Generate
+button draws a fresh z from N(0,I) and decodes it with the selected stage. Dragging any latent location computes a fresh forward pass,
 including locations that were never among the encoded examples. Output images
 show decoder means; they are not Bernoulli pixel samples. Reconstructions start
 at μ(x), so the replay has a stable reference image. Some locations, especially

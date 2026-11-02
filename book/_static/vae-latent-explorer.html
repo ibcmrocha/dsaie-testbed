@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Explore an MNIST variational autoencoder</title>
+  <title>Explore a variational autoencoder</title>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="vae-mnist-inference.js"></script>
   <style>
@@ -62,11 +62,10 @@
 <body>
 <div class="shell"><div class="card">
   <div class="controls">
-    <h2>Explore a two-dimensional VAE · MNIST 0, 1 &amp; 8</h2>
+    <h2>Explore a two-dimensional VAE</h2>
     <div class="buttons">
       <button id="play" type="button" disabled>Start training replay</button>
-      <button id="trained" type="button" disabled>Use trained model</button>
-      <button id="restart" type="button" disabled>Reset to untrained</button>
+      <button id="generate" type="button" disabled>Generate</button>
       <button id="next" type="button" disabled>Next input</button>
     </div>
     <label class="timeline" for="epoch"><span>Training stage</span><input id="epoch" type="range" min="0" max="24" value="0" step="1" disabled><output id="epoch-value">Loading…</output></label>
@@ -78,11 +77,11 @@
       <p id="input-label">Held-out digit</p>
     </div>
     <div class="encoder network">
-      <svg viewBox="0 0 96 112" role="img" aria-label="Encoder maps the image to its latent mean">
+      <svg viewBox="0 0 96 112" role="img" aria-label="Encoder maps the image to a latent distribution">
         <path d="M4 1L74 32V80L4 111Z" fill="#0076c21a" stroke="#0076c2" stroke-width="2"/>
         <path d="M77 56H95M88 50L95 56L88 62" fill="none" stroke="#7f8794" stroke-width="2"/>
         <text x="39" y="52" text-anchor="middle" fill="#0076c2" font-size="11" font-family="system-ui">Encoder</text>
-        <text x="39" y="69" text-anchor="middle" fill="#44505d" font-size="10" font-family="serif">μ(x)</text>
+        <text x="39" y="69" text-anchor="middle" fill="#44505d" font-size="10" font-family="serif">p(z | x)</text>
       </svg>
       <span>784 → 2</span>
     </div>
@@ -124,7 +123,7 @@
       hostFrame.style.height=`${Math.ceil(document.querySelector('.shell').getBoundingClientRect().height)+2}px`;
     }).observe(document.querySelector('.shell'));
   }
-  const controls=['play','trained','restart','next','epoch'].map(id=>document.getElementById(id));
+  const controls=['play','generate','next','epoch'].map(id=>document.getElementById(id));
   const status=document.getElementById('status'),stage=document.getElementById('epoch');
   let model,buffer,images,network,index=0,example=0,z=[0,0],playing=false,timer=null,frame=null,dragging=null;
   const canvas=document.getElementById('decoded'),context=canvas.getContext('2d'),raster=context.createImageData(28,28);
@@ -160,21 +159,25 @@
     document.getElementById('result-title').textContent='Reconstruction';
     queueRender();
   }
-  function checkpoint(next){
-    index=next;const state=model.checkpoints[index];
-    network=MnistVae.unpack(buffer,index,model);
-    // Early encoder means can extend beyond the standard-normal bulk.
-    const extent=Math.max(3,Math.ceil(d3.max(state.mu,row=>Math.max(...row.map(Math.abs)))*1.01*2)/2);
+  function fitLatent(extra=[]){
+    const state=model.checkpoints[index];
+    // Keep early encoder means and even rare, untruncated prior draws visible.
+    const maximum=Math.max(d3.max(state.mu,row=>Math.max(...row.map(Math.abs))),...extra.map(Math.abs));
+    const extent=Math.max(3,Math.ceil(maximum*1.01*2)/2);
     x.domain([-extent,extent]);y.domain([-extent,extent]);
     xAxis.call(d3.axisBottom(x).ticks(6));yAxis.call(d3.axisLeft(y).ticks(6));
     grid.call(d3.axisLeft(y).ticks(6).tickSize(-300).tickFormat(''));
     rings.attr('rx',d=>x(d)-x(0)).attr('ry',d=>y(0)-y(d));
-    stage.value=index;document.getElementById('epoch-value').textContent=`Epoch ${state.epoch} / ${model.training.epochs}`;
     cloud.data(state.mu).attr('cx',d=>x(d[0])).attr('cy',d=>y(d[1]));
+  }
+  function checkpoint(next){
+    index=next;const state=model.checkpoints[index];
+    network=MnistVae.unpack(buffer,index,model);fitLatent();
+    stage.value=index;document.getElementById('epoch-value').textContent=`Epoch ${state.epoch} / ${model.training.epochs}`;
     example=(index*7)%model.labels.length;showExample();
   }
   function explain(){
-    status.textContent=index===0?'Untrained: random weights give meaningless images. Start the replay, or jump to the trained model.':'Drag the point or click the latent space to generate an image. Arrow keys also move the point.';
+    status.textContent=index===0?'Untrained: random weights give meaningless images. Start the replay, or move the training-stage slider.':'Drag the point or click the latent space to generate an image. Arrow keys also move the point.';
   }
   function advance(){
     if(!playing)return;
@@ -220,9 +223,12 @@
       if(index===model.checkpoints.length-1)checkpoint(0);
       playing=true;document.getElementById('play').textContent='Pause training replay';advance();
     });
-    document.getElementById('trained').addEventListener('click',()=>{checkpoint(model.checkpoints.length-1);pause();explain();});
-    document.getElementById('restart').addEventListener('click',()=>{checkpoint(0);pause();explain();});
-    document.getElementById('next').addEventListener('click',()=>{pause();example=(example+1)%model.labels.length;showExample();explain();});
+    document.getElementById('generate').addEventListener('click',()=>{
+      const normal=d3.randomNormal(0,1),location=[normal(),normal()];
+      fitLatent(location);explore(location);
+      status.textContent='Generated from z ∼ N(0, I). Drag the point to explore nearby generations.';
+    });
+    document.getElementById('next').addEventListener('click',()=>{pause();example=(example+1)%model.labels.length;fitLatent();showExample();explain();});
     stage.addEventListener('input',()=>{pause();checkpoint(Number(stage.value));pause();explain();});
     svg.on('pointerdown',event=>{
       if(event.button!==0)return;
