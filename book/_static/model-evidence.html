@@ -23,6 +23,7 @@
     .grid line { stroke:#fff; } .grid path { display:none; }
     .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:8px 0 0; font-size:.78rem; color:var(--muted); }
     .prior-key::before { content:""; display:inline-block; width:22px; border-top:2px solid var(--blue); margin-right:6px; vertical-align:middle; }
+    .truth-key::before { content:""; display:inline-block; width:22px; border-top:2px dashed #111; opacity:.35; margin-right:6px; vertical-align:middle; }
     .posterior-key::before { content:""; display:inline-block; width:22px; height:10px; background:#ec68421f; border-bottom:2px solid var(--orange); margin-right:6px; vertical-align:middle; }
     .evidence { padding:12px 14px; border-top:1px solid #edf1f5; background:#f7f9fb; text-align:center; }
     .metric { display:flex; flex-wrap:wrap; justify-content:center; gap:6px 22px; font-size:.9rem; }
@@ -43,9 +44,9 @@
   <div class="chart">
     <svg id="chart" viewBox="0 0 800 460" role="img" aria-labelledby="title desc">
       <title id="title">Fifty prior functions, posterior distribution, and five observations</title>
-      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The orange posterior mean and plus or minus two standard deviation band describe the latent function, without observation noise. They remain fixed while a slider is held, then update and reveal with the fresh prior samples on release. The exact log marginal likelihood is reported below.</desc>
+      <desc id="desc">The curves are draws from a five-weight Gaussian radial basis function model. Alpha changes their spread and mu shifts the prior weight mean along the unit vector (1,1,1,1,1)/√5. The vertical axis is fixed at minus three to three. Darker curves have a higher likelihood. The current batch moves while a slider is held; release draws fifty fresh functions, revealed from left to right. The orange posterior mean and plus or minus two standard deviation band describe the latent function, without observation noise. They remain fixed while a slider is held, then update and reveal with the fresh prior samples on release. A faint dashed black curve shows the ground truth sin(x) used to generate the noisy observations. The exact log marginal likelihood is reported below.</desc>
     </svg>
-    <div class="legend"><span class="prior-key">50 prior functions</span><span class="posterior-key">Posterior mean ±2σ</span><span>× Observations</span></div>
+    <div class="legend"><span class="prior-key">50 prior functions</span><span class="posterior-key">Posterior mean ±2σ</span><span class="truth-key">Ground truth</span><span>× Observations</span></div>
   </div>
   <div class="evidence">
     <div class="metric">
@@ -58,8 +59,9 @@
   const M=5,N=5,SAMPLES=50,BETA=10;
   // Same Gaussian RBF model as prior-model-sampling.html.
   const centers=d3.range(M).map(i=>1.5*i), basis=(x,i)=>Math.exp(-.5*(x-centers[i])**2);
-  const offsets=[.2,-.25,.35,-.2,.15];
-  const data=d3.range(N).map(i=>{const x=.6+1.2*i;return{x,y:Math.sin(x)+offsets[i]}});
+  const truth=x=>Math.sin(x);
+  const offsets=[.3,-.375,.525,-.3,.225];
+  const data=d3.range(N).map(i=>{const x=.6+1.2*i;return{x,y:truth(x)+offsets[i]}});
   const Phi=data.map(d=>centers.map((_,i)=>basis(d.x,i)));
   const kernel=Phi.map(a=>Phi.map(b=>d3.sum(a,(v,i)=>v*b[i])));
   const xs=d3.range(301).map(i=>6*i/300), design=xs.map(x=>centers.map((_,i)=>basis(x,i)));
@@ -87,6 +89,8 @@
   const posteriorBand=posteriorLayer.append('path').attr('class','posterior-band').attr('fill','#ec6842').attr('opacity',.12);
   const posteriorMean=posteriorLayer.append('path').attr('class','posterior-mean').attr('fill','none').attr('stroke','#ec6842').attr('stroke-width',2.5).attr('opacity',.9);
   const paths=marks.append('g').attr('clip-path','url(#sample-reveal)').selectAll('path').data(draws).join('path').attr('class','sample').attr('fill','none').attr('stroke','#0076c2').attr('stroke-width',1.5);
+  marks.append('path').datum(xs).attr('class','ground-truth').attr('fill','none').attr('stroke','#111').attr('stroke-width',1.5).attr('stroke-dasharray','4 3').attr('opacity',.35)
+    .attr('d',d3.line().x(x).y(v=>y(truth(v))));
   const crosses=marks.append('g').selectAll('path').data(data).join('path').attr('class','observation').attr('d','M-6,-6L6,6M6,-6L-6,6').attr('stroke','#111').attr('stroke-width',2.5).attr('fill','none');
   function cholesky(A){
     const L=A.map(()=>Array(A.length).fill(0));
