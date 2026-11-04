@@ -38,10 +38,14 @@
     #reset:hover { background:#eef5fb; border-color:#7cb3df; }
     #pending:empty { display:none; }
     #pending { margin:7px 0; display:flex; justify-content:center; align-items:center; }
-    .vector { display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; background:white; border:1px solid #cfd7e3; border-radius:8px; box-shadow:0 3px 12px #0c234025; font:16px MJXTEX,"Latin Modern Math",serif; font-size:clamp(13px,4vw,16px); font-variant-numeric:tabular-nums; white-space:nowrap; max-width:calc(100vw - 20px); }
+    .vector { display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 10px; background:white; border:1px solid #cfd7e3; border-radius:8px; box-shadow:0 3px 12px #0c234025; font:16px MJXTEX,"Latin Modern Math",serif; font-size:clamp(13px,4vw,16px); line-height:1.5; font-variant-numeric:tabular-nums; white-space:nowrap; max-width:calc(100vw - 20px); }
     .vector span { font-weight:600; }
     .vector b { font-weight:500; }
-    .vector-x { display:block; min-height:14px; margin-bottom:4px; font-size:11px; font-weight:400; line-height:1.2; color:var(--muted); }
+    .weight-vector { min-height:58px; }
+    .function-vector { display:grid; grid-template-rows:auto auto; column-gap:4px; row-gap:5px; padding:10px 8px; }
+    .function-vector > * { justify-self:center; align-self:center; }
+    .vector-x,.vector-x-prefix { font-size:11px; font-weight:400; line-height:1.3; color:var(--muted); }
+    .vector-x-prefix { font-family:MJXTEX-I,MJXTEX,serif; }
     #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:4px; margin:0 0 8px; padding:40px 3px 34px; min-height:102px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; }
     .weight,.argument { position:relative; display:inline-block; vertical-align:baseline; line-height:1.2; }
     .value { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); font:13px/1 MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
@@ -75,7 +79,7 @@
       h2 { font-size:.94rem; padding:11px; }
       #pending .vector { font-size:clamp(13px,4vw,15px); gap:5px; padding:8px 5px; }
     }
-    @media(max-width:360px) { #equation { gap:2px; } .value,.x-value { font-size:11px; } }
+    @media(max-width:360px) { #equation { gap:2px; } .value,.x-value { font-size:11px; } .function-vector { column-gap:2px; padding-inline:6px; } #pending .vector { gap:2px; padding-inline:4px; } }
     @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
   </style>
 </head>
@@ -163,14 +167,28 @@
   function vector(node,sample){
     const values=sample.source==='weights'?sample.w:sample.values;
     const entries=values.length>6?[0,1,2,null,values.length-2,values.length-1]:values.map((_,i)=>i);
-    const box=d3.select(node).html('').append('div').attr('class','vector').attr('aria-label',`${sample.source==='weights'?'Weight':'Function-value'} vector, ${values.length} components`);
-    box.append('b').text('[');
-    const cells=box.selectAll('span').data(entries).join('span').style('color',i=>sample.source==='weights'?colors[i]:'#6f1d77');
-    if(node===ghost&&sample.source==='functions'){
-      cells.append('small').attr('class','vector-x').text(i=>i===null?'':`x = ${d3.format('.2~f')(sample.points[i].x)}`);
-      cells.append('b').text(i=>i===null?'…':format(values[i]));
-    }else cells.text(i=>i===null?'…':format(values[i]));
-    box.append('b').text(']');
+    const labeled=node===ghost&&sample.source==='functions';
+    const box=d3.select(node).html('').append('div')
+      .attr('class',`vector${sample.source==='weights'?' weight-vector':labeled?' function-vector':''}`)
+      .attr('aria-label',`${sample.source==='weights'?'Weight':'Function-value'} vector, ${values.length} components`);
+    if(labeled){
+      // One shared grid keeps coordinate headers centered over their values.
+      // Brackets occupy only the value row; x = sits outside them on the left.
+      box.style('grid-template-columns',`max-content max-content repeat(${entries.length},max-content) max-content`);
+      box.append('small').attr('class','vector-x-prefix').style('grid-column',1).style('grid-row',1).text('x =');
+      box.append('b').attr('class','vector-bracket').style('grid-column',2).style('grid-row',2).text('[');
+      entries.forEach((entry,column)=>{
+        box.append('small').datum(entry).attr('class','vector-x').style('grid-column',column+3).style('grid-row',1)
+          .text(entry===null?'':d3.format('.2~f')(sample.points[entry].x));
+        box.append('span').datum(entry).attr('class','vector-entry').style('grid-column',column+3).style('grid-row',2)
+          .style('color','#6f1d77').text(entry===null?'…':format(values[entry]));
+      });
+      box.append('b').attr('class','vector-bracket').style('grid-column',entries.length+3).style('grid-row',2).text(']');
+    }else{
+      box.append('b').text('[');
+      box.selectAll('span').data(entries).join('span').style('color',i=>sample.source==='weights'?colors[i]:'#6f1d77').text(i=>i===null?'…':format(values[i]));
+      box.append('b').text(']');
+    }
   }
   function axes(){
     const limit=samples.length?Math.max(1,...samples.map(s=>d3.max(s.points,d=>Math.abs(d.y)))):3;
