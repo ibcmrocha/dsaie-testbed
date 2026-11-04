@@ -19,7 +19,7 @@
     h2 { margin:0; padding:14px; font-size:1rem; font-weight:600; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
     .layout { display:grid; grid-template-columns:180px minmax(0,1fr); gap:14px; padding:14px; }
     .bags { display:grid; align-content:start; justify-items:center; gap:12px; text-align:center; min-width:0; padding-top:0; }
-    .bag { display:block; width:130px; padding:0; border:0; background:none; cursor:grab; touch-action:none; }
+    .bag { display:block; width:130px; margin:0 auto; padding:0; border:0; background:none; cursor:grab; touch-action:none; }
     .bag:active { cursor:grabbing; }
     .bag svg { display:block; width:100%; }
     .bag:hover .sack { filter:brightness(.97); }
@@ -41,10 +41,10 @@
     .vector span { font-weight:600; }
     .vector b { font-weight:500; }
     .vector-x { display:block; min-height:11px; margin-bottom:4px; font-size:9px; font-weight:400; line-height:1.2; color:var(--muted); }
-    #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:4px; margin:0 0 8px; padding:33px 3px 31px; min-height:92px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; }
-    .weight,.argument { position:relative; }
-    .value { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); padding-bottom:7px; font:10px MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
-    .x-value { position:absolute; top:100%; left:50%; transform:translateX(-50%); padding-top:6px; font:10px MJXTEX,"Latin Modern Math",serif; color:var(--orange); font-variant-numeric:tabular-nums; }
+    #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:4px; margin:0 0 8px; padding:40px 3px 34px; min-height:102px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; }
+    .weight,.argument { position:relative; display:inline-block; vertical-align:baseline; line-height:1.2; }
+    .value { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); font:10px/1 MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
+    .x-value { position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%); font:10px/1 MJXTEX,"Latin Modern Math",serif; color:var(--orange); font-variant-numeric:tabular-nums; }
     .active { color:var(--orange); text-shadow:0 0 9px #ec684250; }
     #equation.ready { border-color:var(--blue); cursor:pointer; }
     #equation.over { background:#e3f2fc; box-shadow:0 0 0 3px #0076c225; }
@@ -104,6 +104,7 @@
           </svg>
         </button>
         <p class="distribution math">\(p(\mathbf{y})\)</p>
+        <div class="toolbar"><button id="reset" type="button">Reset samples</button></div>
       </div>
     </div>
     <div class="plot">
@@ -122,7 +123,6 @@
       <div class="legend"><span>Weight draw</span><span class="function-key">Function draw</span></div>
       <div id="density" class="math"><span>\(p(\mathbf{y}) = \mathcal{N}(\mathbf{y}\mid\mathbf{0},\alpha^{-1}\boldsymbol{\Phi}\boldsymbol{\Phi}^{\mathsf{T}})\)</span><span>\(= \mathcal{N}(\mathbf{y}\mid\mathbf{0},\mathbf{K})\)</span></div>
       <p id="dimensions"><span class="math">\(\mathbf{y}\)</span> has <span class="math" data-count></span> entries · <span class="math">\(\boldsymbol{\Phi}\)</span> is <span class="math" data-count></span> × 5 · <span class="math">\(\mathbf{K}\)</span> is <span class="math" data-count></span> × <span class="math" data-count></span></p>
-      <div class="toolbar"><button id="reset" type="button">Reset samples</button></div>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite">Two bags, the same distribution of function values.</p>
