@@ -137,7 +137,7 @@
   let prior=WeightFunctionPrior.createPrior(Number(input.value)),pending=null,samples=[],drag=null,animation=null,nextId=0;
   const svg=d3.select('#chart'),width=530,height=285,x=d3.scaleLinear([0,6],[0,width]),y=d3.scaleLinear([-3,3],[height,0]);
   const g=svg.append('g').attr('transform','translate(56,20)'),defs=g.append('defs');
-  defs.append('clipPath').attr('id','plot-clip').append('rect').attr('x',-5).attr('y',-5).attr('width',width+10).attr('height',height+10);
+  defs.append('clipPath').attr('id','plot-clip').append('rect').attr('x',-9).attr('y',-9).attr('width',width+18).attr('height',height+18);
   const grid=g.append('g').attr('class','grid'),yAxis=g.append('g').attr('class','axis');
   g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).ticks(6));
   g.append('text').attr('class','label').attr('x',width/2).attr('y',height+36).attr('text-anchor','middle').text('x');
@@ -170,7 +170,7 @@
     curves.selectAll('.sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y));
   }
   function finishAnimation(){
-    if(animation){animation.timer.stop();animation.clip.attr('width',width+10);animation.group.attr('opacity',1);if(animation.sample.source==='weights')xValues.text('6.00');animation=null;}
+    if(animation){animation.timer.stop();animation.clip.attr('width',width+10);animation.group.attr('opacity',1);animation.markers.attr('opacity',1).attr('r',3.3).attr('fill',animation.sample.source==='weights'?'#0076c2':'#6f1d77');if(animation.sample.source==='weights')xValues.text('6.00');animation=null;}
     d3.selectAll('.variable').classed('active',false);density.classList.remove('active-density');
   }
   function draw(source){
@@ -186,24 +186,39 @@
     finishAnimation();
     const sample=pending;pending=null;samples.push(sample);axes();
     const id=`sample-clip-${nextId++}`,clip=defs.append('clipPath').attr('class','sample-clip').attr('id',id).append('rect').attr('x',-5).attr('y',-5).attr('height',height+10).attr('width',source==='functions'?width+10:0);
-    const group=curves.append('g').attr('class','sample').attr('data-source',source).attr('clip-path',`url(#${id})`).attr('opacity',source==='functions'?0:1);
+    const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const group=curves.append('g').attr('class','sample').attr('data-source',source).attr('opacity',source==='functions'?0:1);
     const color=source==='weights'?'#0076c2':'#6f1d77';
-    group.append('path').datum(sample).attr('class','sample-line').attr('d',line(sample.points)).attr('stroke',color).attr('stroke-width',2).attr('fill','none').attr('opacity',.8);
-    group.selectAll('circle').data(sample.points).join('circle').attr('class','sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',3.3).attr('fill',color).attr('stroke','white').attr('stroke-width',.8);
+    group.append('path').datum(sample).attr('class','sample-line').attr('clip-path',`url(#${id})`).attr('d',line(sample.points)).attr('stroke',color).attr('stroke-width',2).attr('fill','none').attr('opacity',.8);
+    const popping=source==='weights'&&!reducedMotion;
+    const markers=group.selectAll('circle').data(sample.points).join('circle').attr('class','sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',popping?8:3.3).attr('fill',popping?'#ec6842':color).attr('opacity',(_,i)=>popping&&i>0?0:1).attr('stroke','white').attr('stroke-width',.8);
     pendingBox.replaceChildren();ghost.hidden=true;destinations();
     if(source==='weights'){
       colorWeights(false);weights.each(function(_,i){d3.select(this).append('span').attr('class','value').style('margin-bottom',i%2?'14px':'0').text(format(sample.w[i]));});
       xValues.property('hidden',false).text('0.00');d3.selectAll('.variable').classed('active',true);
     }else density.classList.add('active-density');
     status.textContent=source==='weights'?'Keep the five weights fixed; move x from left to right to evaluate the sampled values.':'Reveal all jointly sampled function values together.';
-    const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
+    // Give each actual input time to register; labels never interpolate between inputs.
+    const duration=reducedMotion?0:source==='weights'?Math.max(1800,160*(sample.points.length-1)):1800;
+    const popDuration=source==='weights'&&!reducedMotion?360:0;
+    const markerColor=d3.interpolateRgb('#ec6842','#0076c2');
     const timer=d3.timer(elapsed=>{
       const t=duration?Math.min(1,elapsed/duration):1;
-      if(source==='weights'){clip.attr('width',t*(width+10));xValues.text((6*t).toFixed(2));}
-      else group.attr('opacity',t);
-      if(t===1){finishAnimation();status.textContent=source==='weights'?`One draw of five weights → ${sample.points.length} function values.`:`One draw from p(y) → ${sample.points.length} function values, with the same distribution.`;}
+      if(source==='weights'){
+        clip.attr('width',t*width+5);
+        const reached=Math.min(sample.points.length-1,Math.floor(t*(sample.points.length-1)+1e-9));
+        xValues.text(sample.points[reached].x.toFixed(2));
+        markers.each(function(d,i){
+          const age=elapsed-(duration*i/(sample.points.length-1));
+          const settled=popDuration?Math.max(0,Math.min(1,age/popDuration)):1;
+          d3.select(this).attr('opacity',age>=0?1:0)
+            .attr('r',3.3+4.7*(1-d3.easeCubicOut(settled)))
+            .attr('fill',markerColor(settled));
+        });
+      }else group.attr('opacity',t);
+      if(elapsed>=duration+popDuration){finishAnimation();status.textContent=source==='weights'?`One draw of five weights → ${sample.points.length} function values.`:`One draw from p(y) → ${sample.points.length} function values, with the same distribution.`;}
     });
-    animation={timer,clip,group,sample};
+    animation={timer,clip,group,markers,sample};
   }
   function moveGhost(event){
     const r=ghost.getBoundingClientRect();
