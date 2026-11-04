@@ -170,7 +170,7 @@
     curves.selectAll('.sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y));
   }
   function finishAnimation(){
-    if(animation){animation.timer.stop();animation.clip.attr('width',width+10);if(animation.sample.source==='weights')xValues.text('6.00');animation=null;}
+    if(animation){animation.timer.stop();animation.clip.attr('width',width+10);animation.group.attr('opacity',1);if(animation.sample.source==='weights')xValues.text('6.00');animation=null;}
     d3.selectAll('.variable').classed('active',false);density.classList.remove('active-density');
   }
   function draw(source){
@@ -185,8 +185,8 @@
     if(!pending||pending.source!==source)return;
     finishAnimation();
     const sample=pending;pending=null;samples.push(sample);axes();
-    const id=`sample-clip-${nextId++}`,clip=defs.append('clipPath').attr('class','sample-clip').attr('id',id).append('rect').attr('x',-5).attr('y',-5).attr('height',height+10).attr('width',0);
-    const group=curves.append('g').attr('class','sample').attr('data-source',source).attr('clip-path',`url(#${id})`);
+    const id=`sample-clip-${nextId++}`,clip=defs.append('clipPath').attr('class','sample-clip').attr('id',id).append('rect').attr('x',-5).attr('y',-5).attr('height',height+10).attr('width',source==='functions'?width+10:0);
+    const group=curves.append('g').attr('class','sample').attr('data-source',source).attr('clip-path',`url(#${id})`).attr('opacity',source==='functions'?0:1);
     const color=source==='weights'?'#0076c2':'#6f1d77';
     group.append('path').datum(sample).attr('class','sample-line').attr('d',line(sample.points)).attr('stroke',color).attr('stroke-width',2).attr('fill','none').attr('opacity',.8);
     group.selectAll('circle').data(sample.points).join('circle').attr('class','sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',3.3).attr('fill',color).attr('stroke','white').attr('stroke-width',.8);
@@ -195,14 +195,15 @@
       colorWeights(false);weights.each(function(_,i){d3.select(this).append('span').attr('class','value').style('margin-bottom',i%2?'14px':'0').text(format(sample.w[i]));});
       xValues.property('hidden',false).text('0.00');d3.selectAll('.variable').classed('active',true);
     }else density.classList.add('active-density');
-    status.textContent=source==='weights'?'Keep the five weights fixed; move x from left to right to evaluate the sampled values.':'Reveal the jointly sampled function values from left to right.';
+    status.textContent=source==='weights'?'Keep the five weights fixed; move x from left to right to evaluate the sampled values.':'Reveal all jointly sampled function values together.';
     const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?0:1800;
     const timer=d3.timer(elapsed=>{
-      const t=duration?Math.min(1,elapsed/duration):1;clip.attr('width',t*(width+10));
-      if(source==='weights')xValues.text((6*t).toFixed(2));
+      const t=duration?Math.min(1,elapsed/duration):1;
+      if(source==='weights'){clip.attr('width',t*(width+10));xValues.text((6*t).toFixed(2));}
+      else group.attr('opacity',t);
       if(t===1){finishAnimation();status.textContent=source==='weights'?`One draw of five weights → ${sample.points.length} function values.`:`One draw from p(y) → ${sample.points.length} function values, with the same distribution.`;}
     });
-    animation={timer,clip,sample};
+    animation={timer,clip,group,sample};
   }
   function moveGhost(event){
     const r=ghost.getBoundingClientRect();
