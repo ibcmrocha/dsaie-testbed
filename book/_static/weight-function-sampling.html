@@ -18,7 +18,7 @@
     .card { border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0c23400f; }
     h2 { margin:0; padding:14px; font-size:1rem; font-weight:600; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
     .layout { display:grid; grid-template-columns:180px minmax(0,1fr); gap:14px; padding:14px; }
-    .bags { display:grid; align-content:start; justify-items:center; gap:12px; text-align:center; min-width:0; padding-top:0; }
+    .bags { display:grid; align-content:start; grid-template-rows:auto auto auto minmax(min-content,1fr); justify-items:center; gap:12px; text-align:center; min-width:0; padding-top:0; }
     .bag { display:block; width:130px; margin:0 auto; padding:0; border:0; background:none; cursor:grab; touch-action:none; }
     .bag:active { cursor:grabbing; }
     .bag svg { display:block; width:100%; }
@@ -30,21 +30,22 @@
     .distribution { font-size:20px; margin:0; }
     .control { font-size:.85rem; text-align:left; width:100%; padding:4px 0; }
     .control label { display:block; }
+    .control label .math { font-size:1.3em; }
     input { display:block; width:100%; min-width:0; accent-color:var(--blue); margin:9px 0 5px; }
-    .plot { min-width:0; container-type:inline-size; }
+    .plot { min-width:0; container-type:inline-size; display:flex; flex-direction:column; }
     .toolbar { display:flex; justify-content:center; margin-top:10px; }
     #reset { border:1px solid #cfd7e3; background:#fff; color:#243140; border-radius:999px; padding:7px 12px; font-size:.86rem; }
     #reset:hover { background:#eef5fb; border-color:#7cb3df; }
     #pending:empty { display:none; }
     #pending { margin:7px 0; display:flex; justify-content:center; align-items:center; }
-    .vector { display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; background:white; border:1px solid #cfd7e3; border-radius:8px; box-shadow:0 3px 12px #0c234025; font:12px MJXTEX,"Latin Modern Math",serif; font-variant-numeric:tabular-nums; white-space:nowrap; max-width:calc(100vw - 20px); }
+    .vector { display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; background:white; border:1px solid #cfd7e3; border-radius:8px; box-shadow:0 3px 12px #0c234025; font:16px MJXTEX,"Latin Modern Math",serif; font-size:clamp(13px,4vw,16px); font-variant-numeric:tabular-nums; white-space:nowrap; max-width:calc(100vw - 20px); }
     .vector span { font-weight:600; }
     .vector b { font-weight:500; }
-    .vector-x { display:block; min-height:11px; margin-bottom:4px; font-size:9px; font-weight:400; line-height:1.2; color:var(--muted); }
+    .vector-x { display:block; min-height:14px; margin-bottom:4px; font-size:11px; font-weight:400; line-height:1.2; color:var(--muted); }
     #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:4px; margin:0 0 8px; padding:40px 3px 34px; min-height:102px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; }
     .weight,.argument { position:relative; display:inline-block; vertical-align:baseline; line-height:1.2; }
-    .value { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); font:10px/1 MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
-    .x-value { position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%); font:10px/1 MJXTEX,"Latin Modern Math",serif; color:var(--orange); font-variant-numeric:tabular-nums; }
+    .value { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); font:13px/1 MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
+    .x-value { position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%); font:13px/1 MJXTEX,"Latin Modern Math",serif; color:var(--orange); font-variant-numeric:tabular-nums; }
     .active { color:var(--orange); text-shadow:0 0 9px #ec684250; }
     #equation.ready { border-color:var(--blue); cursor:pointer; }
     #equation.over { background:#e3f2fc; box-shadow:0 0 0 3px #0076c225; }
@@ -54,25 +55,27 @@
     #chart { display:block; width:100%; height:auto; background:var(--panel); border:1px solid var(--border); border-radius:9px; }
     .axis path,.axis line { stroke:var(--axis); }
     .axis text,.label { fill:#44505d; font-family:system-ui,sans-serif; font-size:12px; }
-    .label { font-family:MJXTEX-I,MJXTEX,serif; }
+    .label { font-family:MJXTEX-I,MJXTEX,serif; font-size:16px; }
     .grid line { stroke:#fff; } .grid path { display:none; }
     .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:7px 0; font-size:.77rem; color:var(--muted); }
     .legend span::before { content:""; display:inline-block; width:20px; border-top:2px solid var(--blue); margin-right:5px; vertical-align:middle; }
     .legend .function-key::before { border-color:var(--purple); }
-    #density { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 7px; padding:12px 6px; border:1px solid var(--border); border-radius:10px; background:#f7f9fb; font-size:clamp(14px,3.6cqw,21px); }
+    #density { margin-top:auto; display:flex; flex-wrap:wrap; justify-content:center; gap:4px 7px; padding:12px 6px; border:1px solid var(--border); border-radius:10px; background:#f7f9fb; font-size:clamp(14px,3.6cqw,21px); }
     #density.active-density { border-color:var(--purple); color:var(--purple); }
-    #dimensions { color:var(--muted); font-size:.75rem; line-height:1.5; text-align:center; margin:7px 0 0; }
+    #dimensions { align-self:end; color:var(--muted); font-size:.75rem; line-height:1.5; text-align:center; margin:0 0 6px; }
+    #dimensions > span { display:block; white-space:nowrap; }
     #status { border-top:1px solid #edf1f5; margin:0; padding:10px 14px; font-size:.82rem; color:var(--muted); line-height:1.5; }
     #ghost { position:fixed; z-index:10; pointer-events:none; }
     [hidden] { display:none !important; }
     @media(max-width:640px) {
       .shell { padding:8px; } .layout { grid-template-columns:1fr; gap:10px; padding:10px; }
-      .bags { gap:6px; padding-top:0; } .bag { width:95px; } .distribution { font-size:18px; }
+      .bags { gap:6px; padding-top:0; grid-template-rows:auto auto auto auto; }
+      #dimensions { margin:0; } .bag { width:95px; } .distribution { font-size:18px; }
       .control { max-width:220px; }
       h2 { font-size:.94rem; padding:11px; }
-      #pending .vector { font-size:11px; gap:5px; padding:8px 5px; }
+      #pending .vector { font-size:clamp(13px,4vw,15px); gap:5px; padding:8px 5px; }
     }
-    @media(max-width:360px) { #equation { gap:2px; } .value,.x-value { font-size:9px; } }
+    @media(max-width:360px) { #equation { gap:2px; } .value,.x-value { font-size:11px; } }
     @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
   </style>
 </head>
@@ -106,6 +109,7 @@
         <p class="distribution math">\(p(\mathbf{y})\)</p>
         <div class="toolbar"><button id="reset" type="button">Reset samples</button></div>
       </div>
+      <p id="dimensions"><span><span class="math">\(\mathbf{y}\)</span> has <span class="math" data-count></span> entries</span><span><span class="math">\(\boldsymbol{\Phi}\)</span>: <span class="math" data-count></span> × 5 · <span class="math">\(\mathbf{K}\)</span>: <span class="math" data-count></span> × <span class="math" data-count></span></span></p>
     </div>
     <div class="plot">
       <div id="equation" class="math" role="button" tabindex="0" aria-label="Insert drawn weights into the equation" aria-disabled="true">
@@ -122,7 +126,6 @@
       </div>
       <div class="legend"><span>Weight draw</span><span class="function-key">Function draw</span></div>
       <div id="density" class="math"><span>\(p(\mathbf{y}) = \mathcal{N}(\mathbf{y}\mid\mathbf{0},\alpha^{-1}\boldsymbol{\Phi}\boldsymbol{\Phi}^{\mathsf{T}})\)</span><span>\(= \mathcal{N}(\mathbf{y}\mid\mathbf{0},\mathbf{K})\)</span></div>
-      <p id="dimensions"><span class="math">\(\mathbf{y}\)</span> has <span class="math" data-count></span> entries · <span class="math">\(\boldsymbol{\Phi}\)</span> is <span class="math" data-count></span> × 5 · <span class="math">\(\mathbf{K}\)</span> is <span class="math" data-count></span> × <span class="math" data-count></span></p>
     </div>
   </div>
   <p id="status" role="status" aria-live="polite">Two bags, the same distribution of function values.</p>
