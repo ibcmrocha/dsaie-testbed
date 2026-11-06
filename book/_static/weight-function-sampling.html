@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample the same prior in weight space and function space</title>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="weight-function-prior.js"></script>
+  <script>
+    window.MathJax={tex:{inlineMath:[['\\(','\\)']]},chtml:{matchFontHeight:false}};
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js"></script>
+  <style>
+    :root { --blue:#0076c2; --orange:#ec6842; --purple:#6f1d77; --panel:#eaeaf2; --axis:#7f8794; --border:#dde3ea; --muted:#5f6b7a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#1b1f24; background:#fff; }
+    .shell { padding:12px; }
+    .card { border:1px solid var(--border); border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0c23400f; }
+    h2 { margin:0; padding:14px; font-size:1rem; font-weight:600; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
+    .layout { display:grid; grid-template-columns:180px minmax(0,1fr); gap:14px; padding:14px; }
+    .bags { display:grid; align-content:start; grid-template-rows:auto auto auto minmax(min-content,1fr); justify-items:center; gap:12px; text-align:center; min-width:0; padding-top:0; }
+    .bag { display:block; width:130px; margin:0 auto; padding:0; border:0; background:none; cursor:grab; touch-action:none; }
+    .bag:active { cursor:grabbing; }
+    .bag svg { display:block; width:100%; }
+    .bag:hover .sack { filter:brightness(.97); }
+    button { font:inherit; cursor:pointer; }
+    button:focus-visible,[role=button]:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
+    .math { font-family:MJXTEX,"Latin Modern Math","STIX Two Math",serif; }
+    .math mjx-container { font-size:100% !important; margin:0 !important; }
+    .distribution { font-size:20px; margin:0; }
+    .control { font-size:.85rem; text-align:left; width:100%; padding:4px 0; }
+    .control label { display:block; }
+    .control label .math { font-size:1.3em; }
+    input { display:block; width:100%; min-width:0; accent-color:var(--blue); margin:9px 0 5px; }
+    .plot { min-width:0; container-type:inline-size; display:flex; flex-direction:column; }
+    .toolbar { display:flex; justify-content:center; margin-top:10px; }
+    #reset { border:1px solid #cfd7e3; background:#fff; color:#243140; border-radius:999px; padding:7px 12px; font-size:.86rem; }
+    #reset:hover { background:#eef5fb; border-color:#7cb3df; }
+    #pending:empty { display:none; }
+    #pending { margin:7px 0; display:flex; justify-content:center; align-items:center; }
+    .vector { display:flex; align-items:center; justify-content:center; gap:6px; padding:14px 10px; background:white; border:1px solid #cfd7e3; border-radius:8px; box-shadow:0 3px 12px #0c234025; font:16px MJXTEX,"Latin Modern Math",serif; font-size:clamp(13px,4vw,16px); line-height:1.5; font-variant-numeric:tabular-nums; white-space:nowrap; max-width:calc(100vw - 20px); }
+    .vector span { font-weight:600; }
+    .vector b { font-weight:500; }
+    .weight-vector { min-height:58px; }
+    .function-vector { display:grid; grid-template-rows:auto auto; column-gap:4px; row-gap:5px; padding:10px 8px; }
+    .function-vector > * { justify-self:center; align-self:center; }
+    .vector-x,.vector-x-prefix { font-size:11px; font-weight:400; line-height:1.3; color:var(--muted); }
+    .vector-x-prefix { font-family:MJXTEX-I,MJXTEX,serif; }
+    #equation { position:relative; display:flex; justify-content:center; align-items:center; gap:4px; margin:0 0 8px; padding:40px 3px 34px; min-height:102px; border:2px dashed #cfd7e3; border-radius:10px; background:#f7f9fb; font-size:clamp(11px,3.5cqw,21px); white-space:nowrap; }
+    .weight,.argument { position:relative; display:inline-block; vertical-align:baseline; line-height:1.2; }
+    .value { position:absolute; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); font:13px/1 MJXTEX,"Latin Modern Math",serif; color:var(--muted); }
+    .x-value { position:absolute; top:calc(100% + 10px); left:50%; transform:translateX(-50%); font:13px/1 MJXTEX,"Latin Modern Math",serif; color:var(--orange); font-variant-numeric:tabular-nums; }
+    .active { color:var(--orange); text-shadow:0 0 9px #ec684250; }
+    #equation.ready { border-color:var(--blue); cursor:pointer; }
+    #equation.over { background:#e3f2fc; box-shadow:0 0 0 3px #0076c225; }
+    #plot-drop { border:2px dashed transparent; border-radius:11px; }
+    #plot-drop.ready { border-color:var(--purple); cursor:pointer; }
+    #plot-drop.over { box-shadow:0 0 0 3px #6f1d7725; }
+    #chart { display:block; width:100%; height:auto; background:var(--panel); border:1px solid var(--border); border-radius:9px; }
+    .axis path,.axis line { stroke:var(--axis); }
+    .axis text,.label { fill:#44505d; font-family:system-ui,sans-serif; font-size:12px; }
+    .label { font-family:MJXTEX-I,MJXTEX,serif; font-size:16px; }
+    .grid line { stroke:#fff; } .grid path { display:none; }
+    .legend { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 18px; margin:7px 0; font-size:.77rem; color:var(--muted); }
+    .legend span::before { content:""; display:inline-block; width:20px; border-top:2px solid var(--blue); margin-right:5px; vertical-align:middle; }
+    .legend .function-key::before { border-color:var(--purple); }
+    #density { margin-top:auto; display:flex; flex-wrap:wrap; justify-content:center; gap:4px 7px; padding:12px 6px; border:1px solid var(--border); border-radius:10px; background:#f7f9fb; font-size:clamp(14px,3.6cqw,21px); }
+    #density.active-density { border-color:var(--purple); color:var(--purple); }
+    #dimensions { align-self:end; color:var(--muted); font-size:.75rem; line-height:1.5; text-align:center; margin:0 0 6px; }
+    #dimensions > span { display:block; white-space:nowrap; }
+    #status { border-top:1px solid #edf1f5; margin:0; padding:10px 14px; font-size:.82rem; color:var(--muted); line-height:1.5; }
+    #ghost { position:fixed; z-index:10; pointer-events:none; }
+    [hidden] { display:none !important; }
+    @media(max-width:640px) {
+      .shell { padding:8px; } .layout { grid-template-columns:1fr; gap:10px; padding:10px; }
+      .bags { gap:6px; padding-top:0; grid-template-rows:auto auto auto auto; }
+      #dimensions { margin:0; } .bag { width:95px; } .distribution { font-size:18px; }
+      .control { max-width:220px; }
+      h2 { font-size:.94rem; padding:11px; }
+      #pending .vector { font-size:clamp(13px,4vw,15px); gap:5px; padding:8px 5px; }
+    }
+    @media(max-width:360px) { #equation { gap:2px; } .value,.x-value { font-size:11px; } .function-vector { column-gap:2px; padding-inline:6px; } #pending .vector { gap:2px; padding-inline:4px; } }
+    @media(prefers-reduced-motion:reduce) { .active { text-shadow:none; } }
+  </style>
+</head>
+<body>
+<div class="shell"><div class="card">
+  <h2>Sample the same prior from weights or function values</h2>
+  <div class="layout">
+    <div class="bags">
+      <div>
+        <button id="weight-bag" class="bag" type="button" data-source="weights" aria-label="Draw five weights. Drag to the top equation, or click then activate the equation.">
+          <svg viewBox="0 0 160 180" aria-hidden="true">
+            <path class="sack" d="M52 18 Q80 30 108 18 L98 52 C115 70 146 110 137 145 Q132 169 80 169 Q28 169 23 145 C14 110 45 70 62 52 Z" fill="#eee3d3" stroke="#9b876d" stroke-width="2.5"/>
+            <path d="M61 52 Q80 57 99 52 M59 58 Q80 63 101 58 M65 27 L72 48 M94 28 L87 48" fill="none" stroke="#9b876d" stroke-width="3" stroke-linecap="round"/>
+            <text x="80" y="124" text-anchor="middle" font-family="Georgia,serif" font-size="19" fill="#5e5141">Weight bag</text>
+          </svg>
+        </button>
+        <p class="distribution math">\(p(\mathbf{w})\)</p>
+      </div>
+      <div class="control">
+        <label for="locations">Number of <span class="math">\(x\)</span> locations: <output id="locations-value">10</output></label>
+        <input id="locations" type="range" min="2" max="20" step="1" value="10">
+      </div>
+      <div>
+        <button id="function-bag" class="bag" type="button" data-source="functions" aria-label="Draw function values. Drag directly to the plot, or click then activate the plot.">
+          <svg viewBox="0 0 160 180" aria-hidden="true">
+            <path class="sack" d="M52 18 Q80 30 108 18 L98 52 C115 70 146 110 137 145 Q132 169 80 169 Q28 169 23 145 C14 110 45 70 62 52 Z" fill="#eadfee" stroke="#6f1d77" stroke-width="2.5"/>
+            <path d="M61 52 Q80 57 99 52 M59 58 Q80 63 101 58 M65 27 L72 48 M94 28 L87 48" fill="none" stroke="#6f1d77" stroke-width="3" stroke-linecap="round"/>
+            <text x="80" y="124" text-anchor="middle" font-family="Georgia,serif" font-size="17" fill="#6f1d77">Function bag</text>
+          </svg>
+        </button>
+        <p class="distribution math">\(p(\mathbf{y})\)</p>
+        <div class="toolbar"><button id="reset" type="button">Reset samples</button></div>
+      </div>
+      <p id="dimensions"><span><span class="math">\(\mathbf{y}\)</span> has <span class="math" data-count></span> entries</span><span><span class="math">\(\boldsymbol{\Phi}\)</span>: <span class="math" data-count></span> × 5 · <span class="math">\(\mathbf{K}\)</span>: <span class="math" data-count></span> × <span class="math" data-count></span></span></p>
+    </div>
+    <div class="plot">
+      <div id="equation" class="math" role="button" tabindex="0" aria-label="Insert drawn weights into the equation" aria-disabled="true">
+        <span><span class="variable">\(y\)</span><span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span> =</span>
+        <span><span class="weight">\(w_1\)</span>\(\phi_1\)<span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span></span><span>+</span>
+        <span><span class="weight">\(w_2\)</span>\(\phi_2\)<span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span></span><span>+</span>
+        <span><span class="weight">\(w_3\)</span>\(\phi_3\)<span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span></span><span>+</span>
+        <span><span class="weight">\(w_4\)</span>\(\phi_4\)<span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span></span><span>+</span>
+        <span><span class="weight">\(w_5\)</span>\(\phi_5\)<span class="argument">(<span class="variable">\(x\)</span>)<span class="x-value" hidden></span></span></span>
+      </div>
+      <div id="pending"></div>
+      <div id="plot-drop" role="button" tabindex="0" aria-label="Plot the drawn function-value vector" aria-disabled="true">
+        <svg id="chart" viewBox="0 0 600 350" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Equivalent samples from weight and function space</title><desc id="chart-desc">Each curve connects values at equally spaced x locations. Blue samples come from Gaussian weights and purple samples directly from the joint Gaussian distribution of function values. Every sampled value has a circular marker.</desc></svg>
+      </div>
+      <div class="legend"><span>Weight draw</span><span class="function-key">Function draw</span></div>
+      <div id="density" class="math"><span>\(p(\mathbf{y}) = \mathcal{N}(\mathbf{y}\mid\mathbf{0},\alpha^{-1}\boldsymbol{\Phi}\boldsymbol{\Phi}^{\mathsf{T}})\)</span><span>\(= \mathcal{N}(\mathbf{y}\mid\mathbf{0},\mathbf{K})\)</span></div>
+    </div>
+  </div>
+  <p id="status" role="status" aria-live="polite">Two bags, the same distribution of function values.</p>
+</div></div>
+<div id="ghost" hidden></div>
+<script>
+(() => {
+  'use strict';
+  let hostFrame=null;try{hostFrame=window.frameElement;}catch{}
+  if(hostFrame&&window.ResizeObserver)new ResizeObserver(()=>{
+    hostFrame.style.height=`${Math.ceil(document.querySelector('.shell').getBoundingClientRect().height)+2}px`;
+  }).observe(document.querySelector('.shell'));
+  const status=document.querySelector('#status');
+  if(!window.d3||!window.WeightFunctionPrior){status.textContent='The widget scripts could not load. Reload to retry.';return;}
+  const colors=['#0076c2','#ec6842','#6f1d77','#14836b','#a56b14'];
+  const input=document.querySelector('#locations'),equation=document.querySelector('#equation'),plotDrop=document.querySelector('#plot-drop');
+  const ghost=document.querySelector('#ghost'),pendingBox=document.querySelector('#pending'),density=document.querySelector('#density');
+  const weights=d3.selectAll('.weight'),xValues=d3.selectAll('.x-value');
+  let prior=WeightFunctionPrior.createPrior(Number(input.value)),pending=null,samples=[],drag=null,animation=null,nextId=0;
+  const svg=d3.select('#chart'),width=530,height=285,x=d3.scaleLinear([0,6],[0,width]),y=d3.scaleLinear([-3,3],[height,0]);
+  const g=svg.append('g').attr('transform','translate(56,20)'),defs=g.append('defs');
+  defs.append('clipPath').attr('id','plot-clip').append('rect').attr('x',-9).attr('y',-9).attr('width',width+18).attr('height',height+18);
+  const grid=g.append('g').attr('class','grid'),yAxis=g.append('g').attr('class','axis');
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(d3.axisBottom(x).ticks(6));
+  g.append('text').attr('class','label').attr('x',width/2).attr('y',height+36).attr('text-anchor','middle').text('x');
+  g.append('text').attr('class','label').attr('transform','rotate(-90)').attr('x',-height/2).attr('y',-41).attr('text-anchor','middle').text('y(x)');
+  const curves=g.append('g').attr('clip-path','url(#plot-clip)'),line=d3.line().x(d=>x(d.x)).y(d=>y(d.y));
+  const format=v=>Math.abs(v)>0&&Math.abs(v)<.01?d3.format('.0e')(v):d3.format('.2~g')(v);
+  function colorWeights(on){weights.style('color',(_,i)=>on?colors[i]:'#1b1f24');}
+  function destinations(){
+    for(const [node,source] of [[equation,'weights'],[plotDrop,'functions']]){
+      const ready=pending?.source===source;node.classList.toggle('ready',ready);node.classList.remove('over');node.setAttribute('aria-disabled',String(!ready));
+    }
+  }
+  function vector(node,sample){
+    const values=sample.source==='weights'?sample.w:sample.values;
+    const entries=values.length>6?[0,1,2,null,values.length-2,values.length-1]:values.map((_,i)=>i);
+    const labeled=node===ghost&&sample.source==='functions';
+    const box=d3.select(node).html('').append('div')
+      .attr('class',`vector${sample.source==='weights'?' weight-vector':labeled?' function-vector':''}`)
+      .attr('aria-label',`${sample.source==='weights'?'Weight':'Function-value'} vector, ${values.length} components`);
+    if(labeled){
+      // One shared grid keeps coordinate headers centered over their values.
+      // Brackets occupy only the value row; x = sits outside them on the left.
+      box.style('grid-template-columns',`max-content max-content repeat(${entries.length},max-content) max-content`);
+      box.append('small').attr('class','vector-x-prefix').style('grid-column',1).style('grid-row',1).text('x =');
+      box.append('b').attr('class','vector-bracket').style('grid-column',2).style('grid-row',2).text('[');
+      entries.forEach((entry,column)=>{
+        box.append('small').datum(entry).attr('class','vector-x').style('grid-column',column+3).style('grid-row',1)
+          .text(entry===null?'':d3.format('.2~f')(sample.points[entry].x));
+        box.append('span').datum(entry).attr('class','vector-entry').style('grid-column',column+3).style('grid-row',2)
+          .style('color','#6f1d77').text(entry===null?'…':format(values[entry]));
+      });
+      box.append('b').attr('class','vector-bracket').style('grid-column',entries.length+3).style('grid-row',2).text(']');
+    }else{
+      box.append('b').text('[');
+      box.selectAll('span').data(entries).join('span').style('color',i=>sample.source==='weights'?colors[i]:'#6f1d77').text(i=>i===null?'…':format(values[i]));
+      box.append('b').text(']');
+    }
+  }
+  function axes(){
+    const limit=samples.length?Math.max(1,...samples.map(s=>d3.max(s.points,d=>Math.abs(d.y)))):3;
+    y.domain([-1.1*limit,1.1*limit]).nice();
+    grid.call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(''));yAxis.call(d3.axisLeft(y).ticks(5));
+    curves.selectAll('.sample-line').attr('d',s=>line(s.points));
+    curves.selectAll('.sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y));
+  }
+  function finishAnimation(){
+    if(animation){animation.timer.stop();animation.clip.attr('width',width+10);animation.group.attr('opacity',1);animation.markers.attr('opacity',1).attr('r',3.3).attr('fill',animation.sample.source==='weights'?'#0076c2':'#6f1d77');if(animation.sample.source==='weights')xValues.text('6.00');animation=null;}
+    d3.selectAll('.variable').classed('active',false);density.classList.remove('active-density');
+  }
+  function draw(source){
+    finishAnimation();
+    pending={source,...(source==='weights'?prior.sampleWeights():prior.sampleFunctions())};
+    pending.points=prior.xs.map((x,i)=>({x,y:pending.values[i]}));
+    weights.selectAll('.value').remove();colorWeights(true);xValues.property('hidden',true);
+    vector(pendingBox,pending);destinations();
+    status.textContent=source==='weights'?'Five weights drawn. Drop them into the top equation.':`${prior.xs.length} jointly Gaussian function values drawn. Drop them directly into the plot.`;
+  }
+  function insert(source){
+    if(!pending||pending.source!==source)return;
+    finishAnimation();
+    const sample=pending;pending=null;samples.push(sample);axes();
+    const id=`sample-clip-${nextId++}`,clip=defs.append('clipPath').attr('class','sample-clip').attr('id',id).append('rect').attr('x',-5).attr('y',-5).attr('height',height+10).attr('width',source==='functions'?width+10:0);
+    const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const group=curves.append('g').attr('class','sample').attr('data-source',source).attr('opacity',source==='functions'?0:1);
+    const color=source==='weights'?'#0076c2':'#6f1d77';
+    group.append('path').datum(sample).attr('class','sample-line').attr('clip-path',`url(#${id})`).attr('d',line(sample.points)).attr('stroke',color).attr('stroke-width',2).attr('fill','none').attr('opacity',.8);
+    const popping=!reducedMotion;
+    const markers=group.selectAll('circle').data(sample.points).join('circle').attr('class','sample-point').attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',popping?8:3.3).attr('fill',popping?'#ec6842':color).attr('opacity',(_,i)=>popping&&source==='weights'&&i>0?0:1).attr('stroke','white').attr('stroke-width',.8);
+    pendingBox.replaceChildren();ghost.hidden=true;destinations();
+    if(source==='weights'){
+      colorWeights(false);weights.each(function(_,i){d3.select(this).append('span').attr('class','value').style('margin-bottom',i%2?'14px':'0').text(format(sample.w[i]));});
+      xValues.property('hidden',false).text('0.00');d3.selectAll('.variable').classed('active',true);
+    }else density.classList.add('active-density');
+    status.textContent=source==='weights'?'Keep the five weights fixed; move x from left to right to evaluate the sampled values.':'Reveal all jointly sampled function values together.';
+    // Give each actual input time to register; labels never interpolate between inputs.
+    const duration=reducedMotion?0:source==='weights'?Math.max(1800,160*(sample.points.length-1)):1800;
+    const popDuration=reducedMotion?0:source==='weights'?360:duration;
+    const markerColor=d3.interpolateRgb('#ec6842',color);
+    const timer=d3.timer(elapsed=>{
+      const t=duration?Math.min(1,elapsed/duration):1;
+      if(source==='weights'){
+        clip.attr('width',t*width+5);
+        const reached=Math.min(sample.points.length-1,Math.floor(t*(sample.points.length-1)+1e-9));
+        xValues.text(sample.points[reached].x.toFixed(2));
+      }else group.attr('opacity',t);
+      markers.each(function(d,i){
+        const age=source==='weights'?elapsed-(duration*i/(sample.points.length-1)):elapsed;
+        const settled=popDuration?Math.max(0,Math.min(1,age/popDuration)):1;
+        d3.select(this).attr('opacity',age>=0?1:0)
+          .attr('r',3.3+4.7*(1-d3.easeCubicOut(settled)))
+          .attr('fill',markerColor(settled));
+      });
+      if(elapsed>=(source==='weights'?duration+popDuration:Math.max(duration,popDuration))){finishAnimation();status.textContent=source==='weights'?`One draw of five weights → ${sample.points.length} function values.`:`One draw from p(y) → ${sample.points.length} function values, with the same distribution.`;}
+    });
+    animation={timer,clip,group,markers,sample};
+  }
+  function moveGhost(event){
+    const r=ghost.getBoundingClientRect();
+    ghost.style.left=`${Math.max(8,Math.min(innerWidth-r.width-8,event.clientX-r.width/2))}px`;
+    ghost.style.top=`${Math.max(8,event.clientY-r.height-12)}px`;
+  }
+  function over(node,event){const r=node.getBoundingClientRect();return event.clientX>=r.left&&event.clientX<=r.right&&event.clientY>=r.top&&event.clientY<=r.bottom;}
+  for(const bag of document.querySelectorAll('.bag')){
+    bag.addEventListener('pointerdown',event=>{
+      if(event.button!==0)return;
+      draw(bag.dataset.source);drag={id:event.pointerId,source:bag.dataset.source};bag.setPointerCapture(event.pointerId);
+      vector(ghost,pending);ghost.hidden=false;moveGhost(event);
+    });
+    bag.addEventListener('pointermove',event=>{
+      if(!drag||event.pointerId!==drag.id)return;
+      moveGhost(event);const target=drag.source==='weights'?equation:plotDrop;target.classList.toggle('over',over(target,event));
+    });
+    bag.addEventListener('pointerup',event=>{
+      if(!drag||event.pointerId!==drag.id)return;
+      const source=drag.source,target=source==='weights'?equation:plotDrop;drag=null;ghost.hidden=true;target.classList.remove('over');
+      if(over(target,event))insert(source);
+    });
+    bag.addEventListener('pointercancel',()=>{drag=null;ghost.hidden=true;equation.classList.remove('over');plotDrop.classList.remove('over');});
+    bag.addEventListener('click',event=>{if(event.detail===0)draw(bag.dataset.source);});
+  }
+  for(const [target,source] of [[equation,'weights'],[plotDrop,'functions']]){
+    target.addEventListener('click',()=>insert(source));
+    target.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();insert(source);}});
+  }
+  function reset(){
+    finishAnimation();samples=[];pending=null;drag=null;ghost.hidden=true;curves.selectAll('*').remove();defs.selectAll('.sample-clip').remove();nextId=0;
+    pendingBox.replaceChildren();weights.selectAll('.value').remove();colorWeights(true);xValues.property('hidden',true);destinations();axes();
+  }
+  document.querySelector('#reset').addEventListener('click',()=>{reset();status.textContent='Plot cleared. Draw from either bag to start again.';});
+  input.addEventListener('input',()=>{
+    reset();prior=WeightFunctionPrior.createPrior(Number(input.value));updateDimensions();
+    status.textContent=`Now using ${prior.xs.length} equally spaced locations. Samples cleared so both bags use the same grid.`;
+  });
+  function updateDimensions(){
+    document.querySelector('#locations-value').textContent=prior.xs.length;
+    document.querySelectorAll('#dimensions [data-count]').forEach(node=>{node.textContent=prior.xs.length;});
+  }
+  axes();updateDimensions();colorWeights(true);
+})();
+</script>
+</body>
+</html>

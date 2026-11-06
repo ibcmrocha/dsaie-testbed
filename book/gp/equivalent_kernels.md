@@ -24,6 +24,8 @@ $$(kerneljointgaussy)
 
 where you can see that $\bw$ vanished, and we can instead just sample from $\mbf{y}$ instead of $\bw$!
 
+<iframe src="../_static/weight-function-sampling.html" style="width: 100%; height: 1100px; border: 0;" loading="lazy" title="Equivalent Gaussian prior samples from weight space and function space"></iframe>
+
 ```{admonition} Further Reading    
 :class: tip    
 If you are interested in the exact derivation of going from $\bw$ to $\mbf{y}$, read Section 6.1 and the beginning of 6.4.1.
