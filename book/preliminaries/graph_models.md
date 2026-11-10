@@ -55,6 +55,10 @@ $$(prelim_graphfactorization2)
 
 Try to get this expression for the joint distribution by yourself and see if it matches the one above. Start from the independent nodes and gradually move towards nodes for which all dependencies are taken into account until you reach the end of the graph.
 
+Practice writing the factorized joint distribution for a random graph below. Each arrow points from a parent to a variable that depends on it.
+
+<iframe src="../_static/graph-factorization.html" style="width: 100%; height: 720px; border: 0;" loading="lazy" title="Practice factorizing the joint distribution of a random Bayesian network"></iframe>
+
 ```{admonition} Further Reading    
 :class: tip    
 Is it possible to obtain a more general expression valid for any graph? You can find out by reading Section 8.1 up until before 8.1.1. 
