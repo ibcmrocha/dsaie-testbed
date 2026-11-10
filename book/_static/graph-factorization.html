@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Practice graph factorization</title>
+  <script>
+    window.MathJax={tex:{inlineMath:[['\\(','\\)']]},svg:{fontCache:'local'}};
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js"></script>
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; color:#1b1f24; background:white; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .shell { padding:12px; }
+    .card { border:1px solid #dde3ea; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px #0c23400f; }
+    .toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; background:#f7f9fb; border-bottom:1px solid #edf1f5; }
+    h2 { margin:0; font-size:1rem; font-weight:600; }
+    button { border:1px solid #0076c2; border-radius:6px; padding:9px 12px; background:#0076c2; color:white; font:inherit; font-size:.88rem; cursor:pointer; }
+    button:hover { background:#005f9e; }
+    button:focus-visible,input:focus-visible { outline:3px solid #ec6842; outline-offset:2px; }
+    #graph { display:block; width:100%; height:260px; }
+    .edge { stroke:#000; stroke-width:1.7; fill:none; }
+    .node { fill:white; stroke:#017188; stroke-width:2.8; }
+    form { padding:0 14px 14px; }
+    label { display:block; font-size:.9rem; font-weight:600; }
+    .hint { color:#5f6b7a; font-size:.82rem; margin:6px 0 10px; line-height:1.5; }
+    input { width:100%; min-width:0; border:1px solid #a7b1bd; border-radius:6px; padding:10px; font: .95rem ui-monospace,monospace; margin-bottom:10px; }
+    #feedback { padding:0 14px 14px; font-size:.9rem; }
+    #feedback[hidden] { display:none; }
+    #status { margin:0 0 8px; font-weight:600; }
+    #solution { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; line-height:1.8; }
+    #solution mjx-container { margin:0!important; }
+    @media(max-width:400px) { .shell { padding:8px; } .toolbar { align-items:flex-start; } h2 { max-width:140px; } #graph { height:235px; } }
+  </style>
+</head>
+<body>
+<div class="shell"><div class="card">
+  <div class="toolbar"><h2>From graph to joint distribution</h2><button id="new" type="button">New graph</button></div>
+  <svg id="graph" viewBox="0 0 600 260" role="img" aria-labelledby="graph-title graph-description">
+    <title id="graph-title">Random Bayesian network</title>
+    <desc id="graph-description"></desc>
+    <defs><marker id="arrow" viewBox="0 -4 9 8" refX="8" refY="0" markerWidth="9" markerHeight="8" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,-4L9,0L0,4L2,0Z" fill="black"/></marker></defs>
+    <g id="edges"></g><g id="nodes"></g>
+  </svg>
+  <form id="answer-form">
+    <label for="answer">Type the factorized joint distribution</label>
+    <p id="hint" class="hint">Use plain text, e.g. p(a,b)=p(a)p(b|a). Include the joint on the left. Factor and parent order do not matter.</p>
+    <input id="answer" type="text" aria-describedby="hint" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="p(a,b)=p(a)p(b|a)">
+    <button type="submit">Check answer</button>
+  </form>
+  <div id="feedback" role="status" aria-live="polite" hidden><p id="status"></p><div id="solution"></div></div>
+</div></div>
+<script>
+(() => {
+  const $=id=>document.getElementById(id), ns='http://www.w3.org/2000/svg';
+  let variables=[], parents={}, revision=0, mathQueue=Promise.resolve();
+  function element(tag,attrs,parent) {
+    const node=document.createElementNS(ns,tag);
+    Object.entries(attrs).forEach(([key,value])=>node.setAttribute(key,value));
+    parent.appendChild(node);return node;
+  }
+  // Serialize typesetting so a new graph cannot leave old labels or answers behind.
+  function typeset(version) {
+    mathQueue=mathQueue.then(async()=>{
+      if (!window.MathJax?.startup?.promise) return;
+      await MathJax.startup.promise;
+      if(version!==revision) return;
+      await MathJax.typesetPromise([$ ('nodes'),$('solution')]);
+    }).catch(console.error);
+  }
+  function clearMath() {
+    if(window.MathJax?.typesetClear) MathJax.typesetClear([$('nodes'),$('solution')]);
+  }
+  function newGraph() {
+    clearMath();revision++;
+    const n=1+Math.floor(Math.random()*6);
+    variables=Array.from({length:n},(_,i)=>String.fromCharCode(97+i));
+    const order=[...variables];
+    for(let i=n-1;i>0;i--) { const j=Math.floor(Math.random()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+    parents=Object.fromEntries(variables.map(v=>[v,[]]));
+    for(let i=0;i<n;i++) for(let j=i+1;j<n;j++) if(Math.random()<.35) parents[order[j]].push(order[i]);
+    Object.values(parents).forEach(p=>p.sort());
+    // Equally spaced points on a circle keep every possible edge clear of other nodes.
+    const positions=Object.fromEntries(order.map((v,i)=>{
+      const angle=-Math.PI/2+2*Math.PI*i/n;
+      return [v,n===1?{x:300,y:130}:{x:300+105*Math.cos(angle),y:130+100*Math.sin(angle)}];
+    }));
+    $('edges').replaceChildren();$('nodes').replaceChildren();
+    variables.forEach(v=>parents[v].forEach(p=>{
+      const a=positions[p],b=positions[v],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+      element('line',{x1:a.x+24*dx/d,y1:a.y+24*dy/d,x2:b.x-25*dx/d,y2:b.y-25*dy/d,'marker-end':'url(#arrow)',class:'edge'},$('edges'));
+    }));
+    variables.forEach(v=>{
+      const {x,y}=positions[v];
+      element('circle',{cx:x,cy:y,r:23,class:'node'},$('nodes'));
+      const label=element('foreignObject',{x:x-19,y:y-19,width:38,height:38},$('nodes'));
+      const div=document.createElement('div');div.style='height:38px;display:flex;align-items:center;justify-content:center;font-size:22px';div.textContent=`\\(${v}\\)`;label.appendChild(div);
+    });
+    $('graph-description').textContent=variables.map(v=>parents[v].length?`${v} has arrows from ${parents[v].join(', ')}.`:`${v} has no incoming arrows.`).join(' ');
+    $('answer').value='';$('feedback').hidden=true;$('solution').replaceChildren();typeset(revision);
+  }
+  function list(text) {
+    if(!/^[a-f](,[a-f])*$/.test(text)) return null;
+    const items=text.split(',');return new Set(items).size===items.length?items.sort():null;
+  }
+  const same=(a,b)=>a!==null && a.join(',')===b.slice().sort().join(',');
+  function correct(text) {
+    const sides=text.toLowerCase().replace(/\s/g,'').split('=');
+    if(sides.length!==2) return false;
+    const joint=/^p\(([^()]*)\)$/.exec(sides[0]);
+    if(!joint || !same(list(joint[1]),variables)) return false;
+    const factors=[...sides[1].matchAll(/p\(([a-f])(?:\|([a-f](?:,[a-f])*))?\)/g)];
+    if(factors.map(f=>f[0]).join('')!==sides[1] || factors.length!==variables.length) return false;
+    const seen=new Set();
+    return factors.every(([,v,p])=>{
+      if(!variables.includes(v)||seen.has(v)) return false;
+      seen.add(v);return same(p?list(p):[],parents[v]);
+    });
+  }
+  $('answer-form').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(!$('answer').value.trim()) { $('feedback').hidden=false;$('status').textContent='Enter a factorization first.';return; }
+    clearMath();
+    $('feedback').hidden=false;$('status').textContent=correct($('answer').value)?'Correct!':'Not quite. Each variable is conditioned on exactly its parents.';
+    $('solution').replaceChildren();
+    const expressions=[`p(${variables.join(',')}) =`,...variables.map(v=>`p(${v}${parents[v].length?'\\mid '+parents[v].join(','):''})`)];
+    expressions.forEach(tex=>{const span=document.createElement('span');span.textContent=`\\(${tex}\\)`;$('solution').appendChild(span);});
+    typeset(revision);
+  });
+  $('new').addEventListener('click',newGraph);
+  newGraph();
+  window.addEventListener('load',()=>typeset(revision));
+})();
+</script>
+</body>
+</html>
