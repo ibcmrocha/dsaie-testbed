@@ -57,7 +57,7 @@ Try to get this expression for the joint distribution by yourself and see if it 
 
 Practice writing the factorized joint distribution for a random graph below. Each arrow points from a parent to a variable that depends on it.
 
-<iframe src="../_static/graph-factorization.html" style="width: 100%; height: 640px; border: 0;" loading="lazy" title="Practice factorizing the joint distribution of a random Bayesian network"></iframe>
+<iframe src="../_static/graph-factorization.html" style="width: 100%; height: 720px; border: 0;" loading="lazy" title="Practice factorizing the joint distribution of a random Bayesian network"></iframe>
 
 ```{admonition} Further Reading    
 :class: tip    
