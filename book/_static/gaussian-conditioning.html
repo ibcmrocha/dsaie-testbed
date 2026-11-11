@@ -3,83 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title></title>
+  <title>Gaussian conditioning</title>
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script>
+    window.MathJax = { tex: { inlineMath: [['\\(', '\\)']] }, svg: { fontCache: 'local' } };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      margin: 16px;
-      color: #222;
-      background: #fff;
-    }
-    .container {
-      width: 980px;
-      max-width: 100%;
-    }
-    svg {
-      overflow: visible;
-      display: block;
-    }
-    .axis path, .axis line {
-      stroke: #666;
-      shape-rendering: crispEdges;
-    }
-    .axis text {
-      fill: #444;
-      font-size: 12px;
-    }
-    .joint-label, .panel-label {
-      font-size: 14px;
-    }
-    .slider-row {
-      display: grid;
-      grid-template-columns: 100px 1fr 56px;
-      gap: 10px;
-      align-items: center;
-      margin: 8px 0;
-      width: 760px;
-      max-width: 100%;
-    }
-    .slider-row label {
-      font-size: 14px;
-    }
-    .slider-row input[type="range"] {
-      width: 100%;
-    }
-    .value {
-      font-variant-numeric: tabular-nums;
-      text-align: right;
-      color: #444;
-    }
-    .contour {
-      stroke: none;
-    }
-    .vline {
-      stroke: #1f77b4;
-      stroke-width: 2;
-    }
-    .curve {
-      fill: none;
-      stroke: #ff7f0e;
-      stroke-width: 2;
-    }
-    .title {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    .note {
-      color: #666;
-      font-size: 12px;
-      margin-top: 6px;
-    }
+    :root { --blue: #0076c2; --orange: #ec6842; --panel: #eaeaf2; --axis: #7f8794; --border: #dde3ea; --muted: #5f6b7a; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #1b1f24; background: #fff; }
+    .shell { padding: 12px; }
+    .card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px #0c23400f; }
+    h2 { margin: 0; padding: 14px; font-size: 1rem; font-weight: 600; }
+    #controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; padding: 12px 14px; background: #f7f9fb; border-block: 1px solid #edf1f5; }
+    .slider-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 10px; min-width: 0; }
+    .slider-row label { font-size: .85rem; }
+    input[type="range"] { grid-column: 1 / -1; grid-row: 2; width: 100%; margin: 0; accent-color: var(--blue); }
+    input:focus-visible { outline: 3px solid #0076c24d; outline-offset: 3px; }
+    .value { grid-column: 2; grid-row: 1; font-size: .85rem; font-variant-numeric: tabular-nums; color: var(--muted); }
+    #plot { padding: 8px; }
+    #plot > svg { display: block; width: 100%; max-width: 740px; height: auto; margin: auto; }
+    .axis path, .axis line { stroke: var(--axis); }
+    .axis text { fill: var(--muted); font-size: 12px; }
+    .grid line { stroke: #fff; stroke-width: 1.2; }
+    .grid path { display: none; }
+    .math-label { display: flex; justify-content: center; align-items: center; height: 100%; font-size: 14px; }
+    .contour { stroke: none; }
+    .vline { stroke: var(--orange); stroke-width: 2.5; stroke-dasharray: 6 4; }
+    .curve { fill: none; stroke: var(--blue); stroke-width: 2.5; }
+    .conditional { stroke: var(--orange); }
+    .note { margin: 0; padding: 10px 14px; border-top: 1px solid #edf1f5; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+    @media (max-width: 500px) { .shell { padding: 8px; } #controls { gap: 10px 14px; } .axis text { font-size: 11px; } .math-label { font-size: 12px; } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="title"></div>
-    <div id="plot"></div>
-    <div id="controls"></div>
-  </div>
+  <main class="shell">
+    <section class="card" aria-label="Interactive Gaussian conditioning">
+      <h2>Conditioning a Gaussian distribution</h2>
+      <div id="controls"></div>
+      <div id="plot"></div>
+      <p class="note">Move the dashed line with \(x_b\) to compare the marginal (blue) and conditional (orange) densities. Change the variances and correlation to reshape the joint distribution.</p>
+    </section>
+  </main>
 
   <script>
     (() => {
@@ -102,220 +68,223 @@
         rho: 0.0
       };
 
-      // --- Layout ---
-      const totalWidth = 780;
-      const totalHeight = 520;
-      const mainLeft = 220;
-      const mainTop = 30;
-      const jointSize = 420;
-      const sideWidth = 110;
-      const sideGap = 22;
-      const sliderStartY = 500;
+      let updatePlot;
+      function drawPlot() {
+        d3v.select('#plot').selectAll('*').remove();
+        // --- Layout ---
+        const totalWidth = Math.max(300, Math.min(740, document.getElementById('plot').clientWidth - 16));
+        const totalHeight = totalWidth * 0.52 + 100;
+        const mainLeft = totalWidth * 0.24;
+        const mainTop = 45;
+        const jointSize = totalWidth * 0.52;
+        const sideWidth = totalWidth * 0.14;
+        const sideGap = totalWidth * 0.035;
 
-      const svg = d3v.select('#plot')
-        .append('svg')
-        .attr('width', totalWidth)
-        .attr('height', totalHeight)
-        .attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+        const svg = d3v.select('#plot')
+          .append('svg')
+          .attr('width', totalWidth)
+          .attr('height', totalHeight)
+          .attr('role', 'img')
+          .attr('aria-label', 'Joint Gaussian density with marginal and conditional densities')
+          .attr('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
 
-      const mainX = d3v.scaleLinear().domain(lims[1]).range([mainLeft, mainLeft + jointSize]);
-      const mainY = d3v.scaleLinear().domain(lims[0]).range([mainTop + jointSize, mainTop]);
+        const mainX = d3v.scaleLinear().domain(lims[1]).range([mainLeft, mainLeft + jointSize]);
+        const mainY = d3v.scaleLinear().domain(lims[0]).range([mainTop + jointSize, mainTop]);
 
-      const leftPanelX = d3v.scaleLinear().domain([1.5, -0.1]).range([mainLeft - sideGap - sideWidth, mainLeft - sideGap]);
-      const rightPanelX = d3v.scaleLinear().domain([-0.1, 1.0]).range([mainLeft + jointSize + sideGap, mainLeft + jointSize + sideGap + sideWidth]);
-      const sideY = d3v.scaleLinear().domain(lims[0]).range([mainTop + jointSize, mainTop]);
+        const leftPanelX = d3v.scaleLinear().domain([1.5, -0.1]).range([mainLeft - sideGap - sideWidth, mainLeft - sideGap]);
+        const rightPanelX = d3v.scaleLinear().domain([-0.1, 1.0]).range([mainLeft + jointSize + sideGap, mainLeft + jointSize + sideGap + sideWidth]);
+        const sideY = d3v.scaleLinear().domain(lims[0]).range([mainTop + jointSize, mainTop]);
 
-      const color = d3v.scaleSequential(d3v.interpolateMagma);
+        const color = d3v.scaleSequential(t => d3v.interpolateRgb('#eaeaf2', '#0076c2')(t));
 
-      const jointLayer = svg.append('g');
-      const axesLayer = svg.append('g');
-      const leftLayer = svg.append('g');
-      const rightLayer = svg.append('g');
-      const overlayLayer = svg.append('g');
+        const jointLayer = svg.append('g');
+        const axesLayer = svg.append('g');
+        const leftLayer = svg.append('g');
+        const rightLayer = svg.append('g');
+        const overlayLayer = svg.append('g');
 
-      // Axes
-      axesLayer.append('g')
-        .attr('class', 'axis')
-        .attr('transform', `translate(0, ${mainTop + jointSize})`)
-        .call(d3v.axisBottom(mainX));
+        // Axes
+        axesLayer.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(0, ${mainTop + jointSize})`)
+          .call(d3v.axisBottom(mainX).ticks(4));
 
-      axesLayer.append('g')
-        .attr('class', 'axis')
-        .attr('transform', `translate(${mainLeft}, 0)`)
-        .call(d3v.axisLeft(mainY).tickFormat(''));
+        axesLayer.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${mainLeft}, 0)`)
+          .call(d3v.axisLeft(mainY).tickFormat(''));
 
-      axesLayer.append('g')
-        .attr('class', 'axis')
-        .attr('transform', `translate(${mainLeft - sideGap}, 0)`)
-        .call(d3v.axisRight(sideY));
+        axesLayer.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${mainLeft - sideGap}, 0)`)
+          .call(d3v.axisRight(sideY).ticks(4));
 
-      axesLayer.append('g')
-        .attr('class', 'axis')
-        .attr('transform', `translate(${mainLeft + jointSize + sideGap}, 0)`)
-        .call(d3v.axisLeft(sideY).tickFormat(''));
+        axesLayer.append('g')
+          .attr('class', 'axis')
+          .attr('transform', `translate(${mainLeft + jointSize + sideGap}, 0)`)
+          .call(d3v.axisLeft(sideY).tickFormat(''));
 
-      axesLayer.append('text')
-        .attr('class', 'joint-label')
-        .attr('x', mainLeft + jointSize / 2)
-        .attr('y', mainTop + jointSize + 38)
-        .attr('text-anchor', 'middle')
-        .text('x_b');
-
-      axesLayer.append('text')
-        .attr('class', 'panel-label')
-        .attr('x', mainLeft - sideGap - sideWidth / 2)
-        .attr('y', mainTop + jointSize + 38)
-        .attr('text-anchor', 'middle')
-        .text('p(x_a)');
-
-      axesLayer.append('text')
-        .attr('class', 'panel-label')
-        .attr('x', mainLeft + jointSize + sideGap + sideWidth / 2)
-        .attr('y', mainTop + jointSize + 38)
-        .attr('text-anchor', 'middle')
-        .text('p(x_a | x_b)');
-
-      axesLayer.append('text')
-        .attr('class', 'panel-label')
-        .attr('x', mainLeft - sideGap - sideWidth - 42)
-        .attr('y', mainTop + jointSize / 2)
-        .attr('transform', `rotate(-90, ${mainLeft - sideGap - sideWidth - 42}, ${mainTop + jointSize / 2})`)
-        .attr('text-anchor', 'middle')
-        .text('x_a');
-
-      // Background boxes for panels
-      [
-        [mainLeft, mainTop, jointSize, jointSize],
-        [mainLeft - sideGap - sideWidth, mainTop, sideWidth, jointSize],
-        [mainLeft + jointSize + sideGap, mainTop, sideWidth, jointSize]
-      ].forEach(([x, y, w, h]) => {
-        axesLayer.append('rect')
-          .attr('x', x)
-          .attr('y', y)
-          .attr('width', w)
-          .attr('height', h)
-          .attr('fill', 'none')
-          .attr('stroke', '#999');
-      });
-
-      const verticalLine = overlayLayer.append('line')
-        .attr('class', 'vline')
-        .attr('y1', mainTop)
-        .attr('y2', mainTop + jointSize);
-
-      const margPath = leftLayer.append('path').attr('class', 'curve');
-      const condPath = rightLayer.append('path').attr('class', 'curve');
-
-      function gaussian1D(x, mean, variance) {
-        const sigma = Math.sqrt(Math.max(variance, 1e-12));
-        const z = (x - mean) / sigma;
-        return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
-      }
-
-      function covariance() {
-        const cov = state.rho * Math.sqrt(state.sigma_aa * state.sigma_bb);
-        return [
-          [state.sigma_aa, cov],
-          [cov, state.sigma_bb]
-        ];
-      }
-
-      function jointPdf(xa, xb) {
-        const Sigma = covariance();
-        const a = Sigma[0][0], b = Sigma[0][1], d = Sigma[1][1];
-        const det = a * d - b * b;
-        const inv00 = d / det;
-        const inv01 = -b / det;
-        const inv11 = a / det;
-        const da = xa - mu[0];
-        const db = xb - mu[1];
-        const quad = inv00 * da * da + 2 * inv01 * da * db + inv11 * db * db;
-        return Math.exp(-0.5 * quad) / (2 * Math.PI * Math.sqrt(det));
-      }
-
-      function conditionalParams(xb) {
-        const Sigma = covariance();
-        const sigma_ab = Sigma[0][1];
-        const mean = mu[0] + (sigma_ab / Sigma[1][1]) * (xb - mu[1]);
-        const variance = Sigma[0][0] - (sigma_ab * sigma_ab) / Sigma[1][1];
-        return { mean, variance };
-      }
-
-      function buildGridValues() {
-        const values = new Array(gridN * gridN);
-        let vmax = -Infinity;
-        for (let iy = 0; iy < gridN; iy++) {
-          const xa = lims[0][0] + (iy / (gridN - 1)) * (lims[0][1] - lims[0][0]);
-          for (let ix = 0; ix < gridN; ix++) {
-            const xb = lims[1][0] + (ix / (gridN - 1)) * (lims[1][1] - lims[1][0]);
-            const v = jointPdf(xa, xb);
-            values[iy * gridN + ix] = v;
-            if (v > vmax) vmax = v;
-          }
+        function mathLabel(x, y, width, tex) {
+          axesLayer.append('foreignObject').attr('x', x).attr('y', y).attr('width', width).attr('height', 36)
+            .append('xhtml:div').attr('class', 'math-label').text(`\\(${tex}\\)`);
         }
-        return { values, vmax };
-      }
+        mathLabel(mainLeft, mainTop + jointSize + 25, jointSize, 'x_b');
+        mathLabel(0, mainTop + jointSize + 25, mainLeft - sideGap, 'p(x_a)');
+        mathLabel(mainLeft + jointSize + sideGap - 12, mainTop + jointSize + 25, sideWidth + 24, 'p(x_a\\mid x_b)');
+        mathLabel(mainLeft - sideGap - 24, 4, 48, 'x_a');
+        mathLabel(mainLeft, 4, jointSize, 'p(x_a,x_b)');
 
-      function contourThresholds(vmax) {
-        return d3v.range(1, contourLevels + 1).map(i => (i / (contourLevels + 1)) * vmax);
-      }
+        // Background boxes for panels
+        [
+          [mainLeft, mainTop, jointSize, jointSize],
+          [mainLeft - sideGap - sideWidth, mainTop, sideWidth, jointSize],
+          [mainLeft + jointSize + sideGap, mainTop, sideWidth, jointSize]
+        ].forEach(([x, y, w, h]) => {
+          svg.insert('rect', ':first-child')
+            .attr('x', x)
+            .attr('y', y)
+            .attr('width', w)
+            .attr('height', h)
+            .attr('fill', 'var(--panel)')
+            .attr('stroke', 'var(--border)');
+        });
 
-      function linePath(xs, ys, xScale, yScale) {
-        return d3v.line()
-          .x((d, i) => xScale(xs[i]))
-          .y((d) => yScale(d))(ys);
-      }
+        const defs = svg.append('defs');
+        [[mainLeft, jointSize, jointLayer, 'joint'], [mainLeft - sideGap - sideWidth, sideWidth, leftLayer, 'marginal'], [mainLeft + jointSize + sideGap, sideWidth, rightLayer, 'conditional']].forEach(([x, width, layer, id]) => {
+          defs.append('clipPath').attr('id', id).append('rect').attr('x', x).attr('y', mainTop).attr('width', width).attr('height', jointSize);
+          layer.attr('clip-path', `url(#${id})`);
+        });
+        [ [mainX, mainLeft, jointSize], [null, mainLeft - sideGap - sideWidth, sideWidth], [null, mainLeft + jointSize + sideGap, sideWidth] ].forEach(([xScale, x, width]) => {
+          svg.insert('g', 'g').attr('class', 'grid').attr('transform', `translate(${x},0)`)
+            .call(d3v.axisLeft(sideY).ticks(4).tickSize(-width).tickFormat(''));
+        });
 
-      function render() {
-        const { values, vmax } = buildGridValues();
-        const thresholds = contourThresholds(vmax);
-        color.domain([0, thresholds[thresholds.length - 1]]);
+        const verticalLine = overlayLayer.append('line')
+          .attr('class', 'vline')
+          .attr('y1', mainTop)
+          .attr('y2', mainTop + jointSize);
 
-        const contours = d3v.contours()
-          .size([gridN, gridN])
-          .thresholds(thresholds)(values);
+        const margPath = leftLayer.append('path').attr('class', 'curve');
+        const condPath = rightLayer.append('path').attr('class', 'curve conditional');
 
-        const geoPath = d3v.geoPath(
-          d3v.geoIdentity().scale(jointSize / (gridN - 1)).translate([mainLeft, mainTop + jointSize]).reflectY(true)
-        );
+        function gaussian1D(x, mean, variance) {
+          const sigma = Math.sqrt(Math.max(variance, 1e-12));
+          const z = (x - mean) / sigma;
+          return Math.exp(-0.5 * z * z) / (sigma * Math.sqrt(2 * Math.PI));
+        }
 
-        const contourSel = jointLayer.selectAll('path.contour').data(contours, d => d.value);
-        contourSel.join(
-          enter => enter.append('path').attr('class', 'contour'),
-          update => update,
-          exit => exit.remove()
-        )
-          .attr('d', geoPath)
-          .attr('fill', d => color(d.value));
+        function covariance() {
+          const cov = state.rho * Math.sqrt(state.sigma_aa * state.sigma_bb);
+          return [
+            [state.sigma_aa, cov],
+            [cov, state.sigma_bb]
+          ];
+        }
 
-        verticalLine
-          .attr('x1', mainX(state.x_b))
-          .attr('x2', mainX(state.x_b));
+        function jointPdf(xa, xb) {
+          const Sigma = covariance();
+          const a = Sigma[0][0], b = Sigma[0][1], d = Sigma[1][1];
+          const det = a * d - b * b;
+          const inv00 = d / det;
+          const inv01 = -b / det;
+          const inv11 = a / det;
+          const da = xa - mu[0];
+          const db = xb - mu[1];
+          const quad = inv00 * da * da + 2 * inv01 * da * db + inv11 * db * db;
+          return Math.exp(-0.5 * quad) / (2 * Math.PI * Math.sqrt(det));
+        }
 
-        const ys = d3v.range(240).map(i => lims[0][0] + (i / 239) * (lims[0][1] - lims[0][0]));
-        const margXs = ys.map(y => gaussian1D(y, mu[0], state.sigma_aa));
-        const cond = conditionalParams(state.x_b);
-        const condXs = ys.map(y => gaussian1D(y, cond.mean, cond.variance));
+        function conditionalParams(xb) {
+          const Sigma = covariance();
+          const sigma_ab = Sigma[0][1];
+          const mean = mu[0] + (sigma_ab / Sigma[1][1]) * (xb - mu[1]);
+          const variance = Sigma[0][0] - (sigma_ab * sigma_ab) / Sigma[1][1];
+          return { mean, variance };
+        }
 
-        margPath.attr('d', linePath(margXs, ys, leftPanelX, sideY));
-        condPath.attr('d', linePath(condXs, ys, rightPanelX, sideY));
+        function buildGridValues() {
+          const values = new Array(gridN * gridN);
+          let vmax = -Infinity;
+          for (let iy = 0; iy < gridN; iy++) {
+            const xa = lims[0][0] + (iy / (gridN - 1)) * (lims[0][1] - lims[0][0]);
+            for (let ix = 0; ix < gridN; ix++) {
+              const xb = lims[1][0] + (ix / (gridN - 1)) * (lims[1][1] - lims[1][0]);
+              const v = jointPdf(xa, xb);
+              values[iy * gridN + ix] = v;
+              if (v > vmax) vmax = v;
+            }
+          }
+          return { values, vmax };
+        }
+
+        function contourThresholds(vmax) {
+          return d3v.range(1, contourLevels + 1).map(i => (i / (contourLevels + 1)) * vmax);
+        }
+
+        function linePath(xs, ys, xScale, yScale) {
+          return d3v.line()
+            .x((d, i) => xScale(xs[i]))
+            .y((d) => yScale(d))(ys);
+        }
+
+        function render() {
+          const { values, vmax } = buildGridValues();
+          const thresholds = contourThresholds(vmax);
+          color.domain([0, thresholds[thresholds.length - 1]]);
+
+          const contours = d3v.contours()
+            .size([gridN, gridN])
+            .thresholds(thresholds)(values);
+
+          const geoPath = d3v.geoPath(
+            d3v.geoIdentity().scale(jointSize / (gridN - 1)).translate([mainLeft, mainTop + jointSize]).reflectY(true)
+          );
+
+          const contourSel = jointLayer.selectAll('path.contour').data(contours, d => d.value);
+          contourSel.join(
+            enter => enter.append('path').attr('class', 'contour'),
+            update => update,
+            exit => exit.remove()
+          )
+            .attr('d', geoPath)
+            .attr('fill', d => color(d.value));
+
+          verticalLine
+            .attr('x1', mainX(state.x_b))
+            .attr('x2', mainX(state.x_b));
+
+          const ys = d3v.range(240).map(i => lims[0][0] + (i / 239) * (lims[0][1] - lims[0][0]));
+          const margXs = ys.map(y => gaussian1D(y, mu[0], state.sigma_aa));
+          const cond = conditionalParams(state.x_b);
+          const condXs = ys.map(y => gaussian1D(y, cond.mean, cond.variance));
+
+          // Expand the density axis only when a sharp conditional peak needs more room.
+          rightPanelX.domain([-0.1, Math.max(1, gaussian1D(cond.mean, cond.mean, cond.variance) * 1.12)]);
+          margPath.attr('d', linePath(margXs, ys, leftPanelX, sideY));
+          condPath.attr('d', linePath(condXs, ys, rightPanelX, sideY));
+        }
+
+        updatePlot = render;
+        render();
+        if (window.MathJax?.typesetPromise) MathJax.startup.promise.then(() => MathJax.typesetPromise([document.getElementById('plot')]));
       }
 
       // Controls
       const controls = d3v.select('#controls');
       const sliderSpecs = [
-        { key: 'x_b', label: 'x_b', min: -4, max: 4, step: 0.01 },
-        { key: 'sigma_aa', label: 'Σ_aa', min: 0.3, max: 2.0, step: 0.01 },
-        { key: 'sigma_bb', label: 'Σ_bb', min: 0.3, max: 2.0, step: 0.01 },
-        { key: 'rho', label: 'ρ_ab', min: -0.95, max: 0.95, step: 0.01 }
+        { key: 'x_b', label: 'x_b', name: 'Conditioning value x b', min: -4, max: 4, step: 0.01 },
+        { key: 'sigma_aa', label: '\\Sigma_{aa}', name: 'Variance of x a', min: 0.3, max: 2.0, step: 0.01 },
+        { key: 'sigma_bb', label: '\\Sigma_{bb}', name: 'Variance of x b', min: 0.3, max: 2.0, step: 0.01 },
+        { key: 'rho', label: '\\rho_{ab}', name: 'Correlation', min: -0.95, max: 0.95, step: 0.01 }
       ];
 
       sliderSpecs.forEach(spec => {
         const row = controls.append('div').attr('class', 'slider-row');
-        row.append('label').attr('for', spec.key).text(spec.label);
+        row.append('label').attr('for', spec.key).text(`\\(${spec.label}\\)`);
         row.append('input')
           .attr('type', 'range')
           .attr('id', spec.key)
+          .attr('aria-label', spec.name)
           .attr('min', spec.min)
           .attr('max', spec.max)
           .attr('step', spec.step)
@@ -323,15 +292,22 @@
           .on('input', function() {
             state[spec.key] = +this.value;
             d3v.select(`#val-${spec.key}`).text(state[spec.key].toFixed(2));
-            render();
+            updatePlot();
           });
-        row.append('div')
+        row.append('output').attr('for', spec.key)
           .attr('class', 'value')
           .attr('id', `val-${spec.key}`)
           .text(state[spec.key].toFixed(2));
       });
 
-      render();
+      drawPlot();
+      let previousWidth = 0;
+      new ResizeObserver(([entry]) => {
+        if (Math.abs(entry.contentRect.width - previousWidth) < 1) return;
+        previousWidth = entry.contentRect.width;
+        if (window.MathJax?.typesetClear) MathJax.typesetClear([document.getElementById('plot')]);
+        drawPlot();
+      }).observe(document.getElementById('plot'));
     })();
   </script>
 </body>
