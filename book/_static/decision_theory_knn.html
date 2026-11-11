@@ -13,8 +13,8 @@
       --c-validation: #6f1d77;
       --c-accent: #009b77;
       --c-bias: #a50034;
-      --c-grid: #d9dee5;
-      --c-axis: #5c6570;
+      --c-grid: #ffffff;
+      --c-axis: #7f8794;
       --c-border: #dde3ea;
       --c-muted: #5f6b7a;
       --c-surface: #ffffff;
@@ -73,6 +73,7 @@
 
     input[type="range"] {
       width: 100%;
+      min-width: 0;
       accent-color: var(--c-data);
     }
 
@@ -126,21 +127,22 @@
     }
 
     .chart-layout.with-sidebar {
-      grid-template-columns: minmax(0, 1fr) 170px;
+      grid-template-columns: minmax(0, 1fr) minmax(80px, 170px);
     }
 
     .chart-frame {
       width: 100%;
+      height: 350px;
       border: 1px solid var(--c-border);
       border-radius: 10px;
       overflow: hidden;
-      background: #ffffff;
+      background: #eaeaf2;
     }
 
     .chart-frame svg {
       display: block;
       width: 100%;
-      height: auto;
+      height: 100%;
     }
 
     .axis path,
@@ -180,20 +182,17 @@
     }
 
     @media (max-width: 640px) {
-      .widget-shell {
-        padding: 8px;
-      }
-
+      .widget-shell { padding: 8px; }
       .controls {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(105px, 140px) minmax(0, 1fr) 42px;
         gap: 6px;
+        padding: 10px;
       }
-
-      .control-value {
-        text-align: left;
-        margin-top: -4px;
-        margin-bottom: 4px;
-      }
+      .chart-layout.with-sidebar { grid-template-columns: minmax(0, 1fr); }
+      .chart-frame { height: 220px; }
+      #side-frame { height: 150px; }
+      .control-label { font-size: 0.82rem; }
+      .control-value { font-size: 0.78rem; }
     }
   </style>
 </head>
@@ -406,13 +405,15 @@
 
       function render() {
         const layoutWidth = document.body.clientWidth || 800;
-        const mainWidth = mainFrame.node().clientWidth || layoutWidth - 28;
+        // Match the viewBox aspect ratio to its frame so the plot fills the panel.
+        const frameWidth = mainFrame.node().clientWidth || layoutWidth - 28;
+        const mainWidth = Math.max(760, frameWidth);
         const sideWidth = config.showSidebar ? 170 : 0;
-        const chartHeight = Math.max(config.minHeight, Math.round(mainWidth * config.heightRatio));
+        const chartHeight = mainFrame.node().clientHeight * mainWidth / frameWidth;
 
         const margin = { top: 42, right: 14, bottom: 54, left: 50 };
         const innerWidth = Math.max(120, mainWidth - margin.left - margin.right);
-        const innerHeight = Math.max(180, chartHeight - margin.top - margin.bottom);
+        const innerHeight = chartHeight - margin.top - margin.bottom;
 
         mainSvg.attr('viewBox', `0 0 ${mainWidth} ${chartHeight}`);
         mainRoot.attr('transform', `translate(${margin.left},${margin.top})`);
@@ -492,14 +493,14 @@
           .attr('transform', `translate(18 ${margin.top + innerHeight / 2}) rotate(-90)`)
           .text('t');
 
-        if (config.showSidebar) renderSidebar(sideWidth, chartHeight, dataset);
+        if (config.showSidebar) renderSidebar(sideWidth, sideFrame.node().clientHeight, dataset);
       }
 
       function renderSidebar(sideWidth, chartHeight, dataset) {
-        const sidebarWidth = Math.max(170, sideWidth || 170);
-        const margin = { top: 18, right: 12, bottom: 50, left: 42 };
+        const sidebarWidth = Math.max(170, sideFrame.node().clientWidth || sideWidth || 170);
+        const margin = { top: 30, right: 12, bottom: 40, left: 42 };
         const innerWidth = Math.max(80, sidebarWidth - margin.left - margin.right);
-        const innerHeight = Math.max(150, chartHeight - margin.top - margin.bottom);
+        const innerHeight = chartHeight - margin.top - margin.bottom;
         const upper = Math.max(1.5, dataset.mseTrain, dataset.mseValidation || 0) * 1.12;
 
         sideSvg.attr('viewBox', `0 0 ${sidebarWidth} ${chartHeight}`);
@@ -527,7 +528,9 @@
         }
 
         sideLabelY
-          .attr('transform', `translate(16 ${margin.top + innerHeight / 2}) rotate(-90)`)
+          .attr('transform', chartHeight <= 150
+            ? `translate(${sidebarWidth / 2} 16)`
+            : `translate(16 ${margin.top + innerHeight / 2}) rotate(-90)`)
           .text('Mean Squared Error');
 
         sideLegend.selectAll('*').remove();
@@ -559,7 +562,7 @@
         let row = 0;
         items.forEach((item) => {
           const itemWidth = Math.max(mode === 'validation' ? 92 : 125, item.label.length * (mode === 'validation' ? 5.7 : 6.5) + 42);
-          if (mode === 'validation' && cursorX + itemWidth > rowLimit) {
+          if (cursorX > 14 && cursorX + itemWidth > rowLimit) {
             cursorX = 14;
             row += 1;
           }
