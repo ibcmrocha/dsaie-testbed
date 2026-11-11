@@ -132,6 +132,7 @@
 
     .chart-frame {
       width: 100%;
+      height: 350px;
       border: 1px solid var(--c-border);
       border-radius: 10px;
       overflow: hidden;
@@ -141,8 +142,7 @@
     .chart-frame svg {
       display: block;
       width: 100%;
-      height: auto;
-      max-height: 350px;
+      height: 100%;
     }
 
     .axis path,
@@ -189,6 +189,8 @@
         padding: 10px;
       }
       .chart-layout.with-sidebar { grid-template-columns: minmax(0, 1fr); }
+      .chart-frame { height: 220px; }
+      #side-frame { height: 150px; }
       .control-label { font-size: 0.82rem; }
       .control-value { font-size: 0.78rem; }
     }
@@ -403,14 +405,15 @@
 
       function render() {
         const layoutWidth = document.body.clientWidth || 800;
-        // Scale a legible SVG coordinate space to the iframe without clipping the legend.
-        const mainWidth = Math.max(760, mainFrame.node().clientWidth || layoutWidth - 28);
+        // Match the viewBox aspect ratio to its frame so the plot fills the panel.
+        const frameWidth = mainFrame.node().clientWidth || layoutWidth - 28;
+        const mainWidth = Math.max(760, frameWidth);
         const sideWidth = config.showSidebar ? 170 : 0;
-        const chartHeight = Math.max(config.minHeight, Math.round(mainWidth * config.heightRatio));
+        const chartHeight = mainFrame.node().clientHeight * mainWidth / frameWidth;
 
         const margin = { top: 42, right: 14, bottom: 54, left: 50 };
         const innerWidth = Math.max(120, mainWidth - margin.left - margin.right);
-        const innerHeight = Math.max(180, chartHeight - margin.top - margin.bottom);
+        const innerHeight = chartHeight - margin.top - margin.bottom;
 
         mainSvg.attr('viewBox', `0 0 ${mainWidth} ${chartHeight}`);
         mainRoot.attr('transform', `translate(${margin.left},${margin.top})`);
@@ -490,7 +493,7 @@
           .attr('transform', `translate(18 ${margin.top + innerHeight / 2}) rotate(-90)`)
           .text('t');
 
-        if (config.showSidebar) renderSidebar(sideWidth, layoutWidth <= 640 ? 150 : chartHeight, dataset);
+        if (config.showSidebar) renderSidebar(sideWidth, sideFrame.node().clientHeight, dataset);
       }
 
       function renderSidebar(sideWidth, chartHeight, dataset) {
@@ -559,7 +562,7 @@
         let row = 0;
         items.forEach((item) => {
           const itemWidth = Math.max(mode === 'validation' ? 92 : 125, item.label.length * (mode === 'validation' ? 5.7 : 6.5) + 42);
-          if (mode === 'validation' && cursorX + itemWidth > rowLimit) {
+          if (cursorX > 14 && cursorX + itemWidth > rowLimit) {
             cursorX = 14;
             row += 1;
           }

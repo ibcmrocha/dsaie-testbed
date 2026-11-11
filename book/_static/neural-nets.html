@@ -161,19 +161,26 @@
 
     .chart-layout {
       display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+      grid-template-columns: minmax(0, 1fr);
       gap: 12px;
       align-items: stretch;
     }
 
     .chart-stack {
       display: grid;
-      grid-template-rows: auto auto auto;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 12px;
     }
 
+    .chart-stack:has(#activation-frame:not(.frame-hidden)) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    #main-frame { height: clamp(240px, 40vw, 360px); }
+
     .chart-frame {
       width: 100%;
+      height: 220px;
       border: 1px solid var(--c-border);
       border-radius: 10px;
       overflow: hidden;
@@ -183,7 +190,7 @@
     .chart-frame svg {
       display: block;
       width: 100%;
-      height: auto;
+      height: 100%;
     }
 
     .frame-hidden { display: none; }
@@ -206,10 +213,7 @@
       }
       .control-label { font-size: 0.82rem; }
       .control-value { font-size: 0.78rem; }
-      .chart-layout { grid-template-columns: 1fr; }
-      .chart-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
-      #loss-frame { grid-column: 1 / -1; }
-      #loss-frame svg { max-height: 140px; }
+      .chart-frame { height: 180px; }
     }
   </style>
 </head>
@@ -589,9 +593,16 @@
         renderActivationChart();
       }
 
+      // Keep each SVG's aspect ratio identical to its enclosing panel.
+      function panelSize(frame, minimumWidth) {
+        const node = frame.node();
+        const frameWidth = node.clientWidth || minimumWidth;
+        const width = Math.max(minimumWidth, frameWidth);
+        return { width, height: node.clientHeight * width / frameWidth };
+      }
+
       function renderMainChart() {
-        const width = Math.max(520, mainFrame.node().clientWidth || 520);
-        const height = Math.max(420, Math.round(width * 0.62));
+        const { width, height } = panelSize(mainFrame, 520);
         const margin = { top: 60, right: 16, bottom: 54, left: 52 };
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
@@ -655,8 +666,7 @@
       }
 
       function renderLossChart(checkpointIndices = null) {
-        const width = Math.max(240, lossFrame.node().clientWidth || 240);
-        const height = 260;
+        const { width, height } = panelSize(lossFrame, 240);
         const margin = { top: 66, right: 14, bottom: 48, left: 48 };
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
@@ -722,8 +732,7 @@
       }
 
       function renderNetworkDiagram() {
-        const width = Math.max(240, networkFrame.node().clientWidth || 240);
-        const height = 200;
+        const { width, height } = panelSize(networkFrame, 240);
         networkSvg.attr('viewBox', `0 0 ${width} ${height}`);
         networkRoot.selectAll('*').remove();
 
@@ -776,8 +785,7 @@
 
       function renderActivationChart() {
         if (!config.showActivationSelector) return;
-        const width = Math.max(240, activationFrame.node().clientWidth || 240);
-        const height = 180;
+        const { width, height } = panelSize(activationFrame, 240);
         const margin = { top: 18, right: 14, bottom: 42, left: 42 };
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
