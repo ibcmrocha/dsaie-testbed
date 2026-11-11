@@ -146,7 +146,7 @@ $$(prelim_gaussian9)
 
 and can be interpreted as a normalized version of the covariance $\Sigma_{ab}$. We chose this parameterization to ensure a positive semidefinite covariance matrix $\boldsymbol{\Sigma}$.
 
-<iframe src="../_static/gaussian-conditioning.html" width="800" height="800" frameborder="0"></iframe>
+<iframe src="../_static/gaussian-conditioning.html" width="100%" height="800" frameborder="0" title="Interactive Gaussian marginal and conditional distributions"></iframe>
 
 (bayes-stdexpressions)=
 ### Bayesian inversion
