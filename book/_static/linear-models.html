@@ -11,8 +11,8 @@
       --c-data: #0076c2;
       --c-pred: #ec6842;
       --c-validation: #6f1d77;
-      --c-grid: #d9dee5;
-      --c-axis: #5c6570;
+      --c-grid: #ffffff;
+      --c-axis: #7f8794;
       --c-border: #dde3ea;
       --c-muted: #5f6b7a;
       --c-surface: #ffffff;
@@ -69,6 +69,7 @@
 
     input[type="range"] {
       width: 100%;
+      min-width: 0;
       accent-color: var(--c-data);
     }
 
@@ -121,13 +122,14 @@
       border: 1px solid var(--c-border);
       border-radius: 10px;
       overflow: hidden;
-      background: #ffffff;
+      background: #eaeaf2;
     }
 
     .chart-frame svg {
       display: block;
       width: 100%;
       height: auto;
+      max-height: 460px;
     }
 
     .axis path,
@@ -162,14 +164,12 @@
     @media (max-width: 640px) {
       .widget-shell { padding: 8px; }
       .controls {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(105px, 140px) minmax(0, 1fr) 42px;
         gap: 6px;
+        padding: 10px;
       }
-      .control-value {
-        text-align: left;
-        margin-top: -4px;
-        margin-bottom: 4px;
-      }
+      .control-label { font-size: 0.82rem; }
+      .control-value { font-size: 0.78rem; }
     }
   </style>
 </head>
@@ -345,7 +345,8 @@
       }
 
       function render() {
-        const frameWidth = mainFrame.node().clientWidth || document.body.clientWidth || 800;
+        // Scale a legible SVG coordinate space to the iframe without clipping the legend.
+        const frameWidth = Math.max(760, mainFrame.node().clientWidth || document.body.clientWidth || 800);
         const chartHeight = Math.max(config.minHeight, Math.round(frameWidth * config.heightRatio));
         const margin = { top: 20, right: 14, bottom: 58, left: 50 };
         const innerWidth = Math.max(140, frameWidth - margin.left - margin.right);

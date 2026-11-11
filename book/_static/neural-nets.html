@@ -12,8 +12,8 @@
       --c-pred: #ec6842;
       --c-validation: #6f1d77;
       --c-accent: #009b77;
-      --c-grid: #d9dee5;
-      --c-axis: #5c6570;
+      --c-grid: #ffffff;
+      --c-axis: #7f8794;
       --c-border: #dde3ea;
       --c-muted: #5f6b7a;
       --c-surface: #ffffff;
@@ -76,6 +76,7 @@
 
     input[type="range"] {
       width: 100%;
+      min-width: 0;
       accent-color: var(--c-data);
     }
 
@@ -176,7 +177,7 @@
       border: 1px solid var(--c-border);
       border-radius: 10px;
       overflow: hidden;
-      background: #ffffff;
+      background: #eaeaf2;
     }
 
     .chart-frame svg {
@@ -196,16 +197,19 @@
     .axis-label { font-size: 13px; fill: #243140; }
     .annotation { font-size: 12px; fill: #5f6b7a; }
 
-    @media (max-width: 840px) {
-      .chart-layout { grid-template-columns: 1fr; }
-      .chart-stack { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-template-rows: none; }
-    }
-
     @media (max-width: 640px) {
       .widget-shell { padding: 8px; }
-      .controls { grid-template-columns: 1fr; gap: 6px; }
-      .control-value { text-align: left; margin-top: -4px; margin-bottom: 4px; }
-      .chart-stack { grid-template-columns: 1fr; }
+      .controls {
+        grid-template-columns: minmax(105px, 140px) minmax(0, 1fr) 42px;
+        gap: 6px;
+        padding: 10px;
+      }
+      .control-label { font-size: 0.82rem; }
+      .control-value { font-size: 0.78rem; }
+      .chart-layout { grid-template-columns: 1fr; }
+      .chart-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; }
+      #loss-frame { grid-column: 1 / -1; }
+      #loss-frame svg { max-height: 140px; }
     }
   </style>
 </head>
@@ -588,7 +592,7 @@
       function renderMainChart() {
         const width = Math.max(520, mainFrame.node().clientWidth || 520);
         const height = Math.max(420, Math.round(width * 0.62));
-        const margin = { top: 18, right: 16, bottom: 54, left: 52 };
+        const margin = { top: 60, right: 16, bottom: 54, left: 52 };
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
 
@@ -639,7 +643,7 @@
           .text('t');
         mainStatus
           .attr('x', width - 18)
-          .attr('y', 20)
+          .attr('y', 52)
           .text(runtime.running ? 'Training…' : runtime.dirty ? 'Click Run to update prediction' : '');
 
         drawLegend(legendLayer, [
@@ -647,13 +651,13 @@
           { label: 'Training data (x, t)', color: constants.colorData, visible: true, cross: true },
           { label: 'Validation data (x, t)', color: constants.colorValidation, visible: runtime.data.xVal.length > 0, cross: true },
           { label: 'Prediction y(x)', color: constants.colorPred, visible: yPred.length > 0 }
-        ], width, margin.top, margin.left + 8);
+        ], width, 18, margin.left + 8);
       }
 
       function renderLossChart(checkpointIndices = null) {
         const width = Math.max(240, lossFrame.node().clientWidth || 240);
         const height = 260;
-        const margin = { top: 18, right: 14, bottom: 48, left: 48 };
+        const margin = { top: 66, right: 14, bottom: 48, left: 48 };
         const innerWidth = width - margin.left - margin.right;
         const innerHeight = height - margin.top - margin.bottom;
 
@@ -995,6 +999,11 @@
         const visibleItems = items.filter(item => item.visible);
         let cursorX = startX;
         visibleItems.forEach((item) => {
+          const itemWidth = Math.max(item.label.length * 6.25 + 42, 100);
+          if (cursorX > startX && cursorX + itemWidth > width - 12) {
+            cursorX = startX;
+            y += 16;
+          }
           const group = layer.append('g').attr('transform', `translate(${cursorX},${y})`);
           if (item.cross) {
             group.append('path')
@@ -1012,7 +1021,7 @@
               .attr('stroke-width', 2.2);
           }
           group.append('text').attr('x', 18).attr('y', 4).style('font-size', `${fontSize}px`).text(item.label);
-          cursorX += Math.min(Math.max(item.label.length * 6.25 + 42, 100), Math.max(110, (width - startX) / Math.max(1, visibleItems.length)));
+          cursorX += itemWidth;
         });
       }
 
